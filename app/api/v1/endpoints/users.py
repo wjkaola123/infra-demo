@@ -32,7 +32,7 @@ async def create_user(
 
     await redis.set(f"user:{user.username}", user.email, ex=3600)
 
-    return ApiResponse(data=user)
+    return ApiResponse(message="success", status=0, data=None)
 
 
 @router.get("/{user_id}", response_model=ApiResponse[UserResponse])
@@ -41,4 +41,4 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return ApiResponse(data=user)
+    return ApiResponse(message="success", status=0, data=None)
