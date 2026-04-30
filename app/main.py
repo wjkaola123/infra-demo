@@ -6,6 +6,7 @@ from app.config import settings
 from app.database import engine
 from app.redis import redis_client
 from app.api.router import router as api_router
+from app.middleware.logging import setup_logging_middleware
 
 
 @asynccontextmanager
@@ -29,6 +30,8 @@ app = FastAPI(
     version=settings.APP_VERSION,
     lifespan=lifespan,
 )
+
+setup_logging_middleware(app)
 
 app.add_middleware(
     CORSMiddleware,

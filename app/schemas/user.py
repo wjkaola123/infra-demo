@@ -5,6 +5,7 @@ from datetime import datetime
 class UserCreate(BaseModel):
     username: str
     email: EmailStr
+    is_active: bool = True
 
 
 class UserResponse(BaseModel):
