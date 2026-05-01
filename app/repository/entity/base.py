@@ -1,6 +1,10 @@
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import Column, Integer, DateTime
 from sqlalchemy.sql import func
-from app.database import Base
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 class TimestampMixin:

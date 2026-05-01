@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean
-from app.database import Base
-from app.models.base import TimestampMixin
+from app.repository.entity.base import Base, TimestampMixin
 
 
 class User(Base, TimestampMixin):

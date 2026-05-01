@@ -67,6 +67,42 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 
 Use GitHub MCP (`mcp__plugin_github_github__push_files`) instead of git push to avoid SSH issues.
 
+## DDD Directory Structure
+
+Follow Domain-Driven Design principles for code organization:
+
+```
+app/
+├── repository/                    # 数据访问层
+│   ├── entity/                    # 数据库实体（SQLAlchemy ORM Model）
+│   │   ├── base.py               # Base + TimestampMixin
+│   │   └── user.py               # User ORM Model
+│   └── user_repository.py        # UserRepository 数据访问类
+├── entity/                        # 业务实体（Domain Entity）
+│   └── user.py                   # UserEntity
+├── handler/                       # 请求处理层
+│   └── entity/
+│       ├── request/              # 请求 DTO
+│       │   └── user.py          # UserCreateRequest
+│       └── response/            # 响应 DTO
+│           └── user.py          # UserResponse
+├── service/                       # 业务服务层
+│   └── user_service.py          # UserService
+├── api/                          # API 路由层
+│   └── v1/endpoints/users.py    # 用户 API 端点
+├── middleware/                   # 中间件
+│   └── logging.py
+└── tasks/                        # Celery 任务
+```
+
+**Layer responsibilities:**
+- `repository/entity` - SQLAlchemy ORM 模型，对应数据库表结构
+- `repository` - Repository 模式，封装数据库访问逻辑
+- `entity` - 业务实体，独立于数据库的业务对象
+- `handler/entity/request` - 外部请求 DTO，用于 API 输入验证
+- `handler/entity/response` - 外部响应 DTO，用于 API 输出格式化
+- `service` - 业务逻辑层，编排业务操作
+
 ## File Structure
 
 ```
