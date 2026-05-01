@@ -9,34 +9,33 @@ FastAPI backend service framework with full async architecture (API + PostgreSQL
 ## Common Commands
 
 ```bash
-# Start infrastructure services (PostgreSQL, Redis)
+# Start all services (PostgreSQL, Redis, API, Celery)
 docker-compose up -d
+
+# Rebuild and start all services
+docker-compose up -d --build
+
+# Stop all services
+docker-compose down
 
 # Apply database migrations
 alembic upgrade head
-
-# Start development server with hot reload
-poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Run tests
 poetry run pytest
 
 # Run a single test
 poetry run pytest tests/test_api/test_users.py -v
-
-# Start Celery worker
-poetry run celery -A app.celery_app worker --loglevel=info
 ```
 
 ## Architecture
 
 ### Configuration
 - `app/config.py` - pydantic-settings based configuration, loaded from `.env`
-- `settings.DEBUG` flag controls logging middleware behavior
 
 ### Request Flow
 ```
-Client → LoggingMiddleware (captures request/response in DEBUG mode) → API Router → Endpoint
+Client → CORS Middleware → API Router → Endpoint
 
 API Router hierarchy:
   app/api/router.py (prefix: /api)
@@ -50,9 +49,16 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 - `status: int = 0`
 - `data: T | None = None`
 
-### Middleware
-- `app/middleware/logging.py` - ASGI middleware capturing method, URL, status, process_time, request_body, response_body
-- Only active when `settings.DEBUG = true`
+### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| GET | `/api/v1/users/` | List all users |
+| POST | `/api/v1/users/` | Create a new user |
+| GET | `/api/v1/users/{id}` | Get user by ID |
+| PUT | `/api/v1/users/{id}` | Update user by ID |
+| DELETE | `/api/v1/users/{id}` | Delete user by ID |
 
 ### Dependencies
 - `app/dependencies.py` - `get_db()` for AsyncSession, `get_redis()` for Redis client
@@ -62,10 +68,6 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 - SQLAlchemy async with `asyncpg` driver
 - Alembic for migrations (async support configured in `alembic/env.py`)
 - Redis async client for caching
-
-## Code Push
-
-Use GitHub MCP (`mcp__plugin_github_github__push_files`) instead of git push to avoid SSH issues.
 
 ## DDD Directory Structure
 
@@ -83,16 +85,17 @@ app/
 ├── handler/                       # 请求处理层
 │   └── entity/
 │       ├── request/              # 请求 DTO
-│       │   └── user.py          # UserCreateRequest
+│       │   └── user.py          # UserCreateRequest, UserUpdateRequest
 │       └── response/            # 响应 DTO
 │           └── user.py          # UserResponse
 ├── service/                       # 业务服务层
 │   └── user_service.py          # UserService
 ├── api/                          # API 路由层
-│   └── v1/endpoints/users.py    # 用户 API 端点
-├── middleware/                   # 中间件
-│   └── logging.py
+│   └── v1/endpoints/users.py    # 用户 API 端点 (list/create/get/update/delete)
+├── schemas/                      # Pydantic schemas
+│   └── common.py                # ApiResponse
 └── tasks/                        # Celery 任务
+    └── example_tasks.py
 ```
 
 **Layer responsibilities:**
@@ -113,9 +116,15 @@ app/
 ├── database.py           # SQLAlchemy async engine
 ├── redis.py              # Redis async client
 ├── celery_app.py         # Celery config
-├── models/               # SQLAlchemy models
-├── schemas/              # Pydantic schemas (common.py has ApiResponse)
 ├── api/                  # Route handlers
-├── services/             # Business logic
-└── middleware/           # ASGI middleware (logging)
+├── service/              # Business logic
+├── repository/           # Data access layer
+├── entity/               # Domain entities
+├── handler/              # Request/Response DTOs
+├── schemas/              # Pydantic schemas (common.py has ApiResponse)
+└── tasks/                # Celery tasks
 ```
+
+## Code Push
+
+Use GitHub MCP (`mcp__plugin_github_github__push_files`) instead of git push to avoid SSH issues.
