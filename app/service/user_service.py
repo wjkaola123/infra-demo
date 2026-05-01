@@ -1,7 +1,7 @@
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repository.user_repository import UserRepository
-from app.handler.entity.request.user import UserCreateRequest
+from app.handler.entity.request.user import UserCreateRequest, UserUpdateRequest
 from app.handler.entity.response.user import UserResponse
 
 
@@ -29,3 +29,36 @@ class UserService:
         if not user:
             return None
         return UserResponse.model_validate(user)
+
+    async def list_users(self) -> list[UserResponse]:
+        users = await self.repo.find_all()
+        return [UserResponse.model_validate(u) for u in users]
+
+    async def update_user(self, user_id: int, user_data: UserUpdateRequest) -> UserResponse | None:
+        user = await self.repo.find_by_id(user_id)
+        if not user:
+            return None
+
+        if user_data.username is not None:
+            existing = await self.repo.find_by_username(user_data.username)
+            if existing and existing.id != user_id:
+                raise ValueError("Username already exists")
+            user.username = user_data.username
+
+        if user_data.email is not None:
+            user.email = user_data.email
+
+        if user_data.is_active is not None:
+            user.is_active = user_data.is_active
+
+        updated = await self.repo.update(user)
+        await self.redis.delete(f"user:{user.username}")
+        return UserResponse.model_validate(updated)
+
+    async def delete_user(self, user_id: int) -> bool:
+        user = await self.repo.find_by_id(user_id)
+        if not user:
+            return False
+        await self.redis.delete(f"user:{user.username}")
+        await self.repo.delete(user)
+        return True

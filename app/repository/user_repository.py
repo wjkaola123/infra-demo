@@ -26,3 +26,16 @@ class UserRepository:
         await self.session.commit()
         await self.session.refresh(user)
         return user
+
+    async def find_all(self) -> list[User]:
+        result = await self.session.execute(select(User))
+        return list(result.scalars().all())
+
+    async def update(self, user: User) -> User:
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user
+
+    async def delete(self, user: User) -> None:
+        await self.session.delete(user)
+        await self.session.commit()
