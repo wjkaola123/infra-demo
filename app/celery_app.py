@@ -4,7 +4,7 @@ from app.config import settings
 
 
 celery_app = Celery(
-    "infra-demo",
+    "infra-backend",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
     include=["app.tasks.example_tasks"],

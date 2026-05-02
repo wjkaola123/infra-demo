@@ -1,14 +1,41 @@
 import pytest
 import pytest_asyncio
-import asyncio
+import socket
+import os
+
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from redis.asyncio import Redis
 
-from app.config import settings
+
+def get_docker_host_ip() -> str:
+    # In Docker container, use service names; on host, use localhost
+    if os.environ.get('IN_DOCKER_CONTAINER'):
+        return "host.docker.internal"
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        host_ip = s.getsockname()[0]
+        s.close()
+        return host_ip
+    except Exception:
+        return "localhost"
 
 
-TEST_DATABASE_URL = "postgresql+asyncpg://app:app_password@localhost:5432/app_db"
+# Use 'postgres' service name from docker-compose, not host IP
+TEST_DATABASE_URL = "postgresql+asyncpg://app:app_password@postgres:5432/app_db"
+TEST_REDIS_URL = "redis://redis:6379/0"
+
+
+@pytest_asyncio.fixture
+async def redis_client():
+    """Create a redis client per test - each test gets its own connection."""
+    client = Redis.from_url(TEST_REDIS_URL, decode_responses=True)
+    yield client
+    try:
+        await client.aclose()
+    except Exception:
+        pass
 
 
 @pytest_asyncio.fixture
@@ -24,17 +51,6 @@ async def db_session():
 
     async with TestAsyncSessionLocal() as session:
         yield session
-
-
-@pytest_asyncio.fixture
-async def redis_client():
-    """Create a redis client per test - each test gets its own connection."""
-    client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
-    yield client
-    try:
-        await client.aclose()
-    except Exception:
-        pass
 
 
 @pytest_asyncio.fixture

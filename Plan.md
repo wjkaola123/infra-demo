@@ -2,7 +2,7 @@
 
 ## Context
 
-构建一个完整的 FastAPI 后台服务框架，作为后续业务开发的基础。项目目录 `/home/wj/projects/infra-demo` 目前为空，需要从头搭建整个框架。
+构建一个完整的 FastAPI 后台服务框架，作为后续业务开发的基础。项目目录 `/home/wj/projects/infra-backend` 目前为空，需要从头搭建整个框架。
 
 **核心要求：**
 - FastAPI (最新版本) 作为 Web 框架
@@ -17,7 +17,7 @@
 ## 项目目录结构
 
 ```
-infra-demo/
+infra-backend/
 ├── pyproject.toml              # Poetry 项目配置
 ├── poetry.lock                 # 锁定依赖版本
 ├── .env.example                # 环境变量示例
@@ -76,7 +76,7 @@ infra-demo/
 
 ```toml
 [tool.poetry]
-name = "infra-demo"
+name = "infra-backend"
 version = "0.1.0"
 description = "FastAPI backend service framework"
 authors = ["wj"]
@@ -154,7 +154,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     # App
-    APP_NAME: str = "infra-demo"
+    APP_NAME: str = "infra-backend"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
 
@@ -175,7 +175,7 @@ settings = Settings()
 创建 `.env.example`：
 
 ```env
-APP_NAME=infra-demo
+APP_NAME=infra-backend
 DEBUG=false
 DATABASE_URL=postgresql+asyncpg://app:app_password@localhost:5432/app_db
 REDIS_URL=redis://localhost:6379/0
@@ -322,7 +322,7 @@ from app.config import settings
 
 
 celery_app = Celery(
-    "infra-demo",
+    "infra-backend",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
     include=["app.tasks.example_tasks"],

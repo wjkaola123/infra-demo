@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "infra-demo"
+name = "infra-backend"
 version = "0.1.0"
 description = "FastAPI backend service framework"
 authors = ["wj"]
