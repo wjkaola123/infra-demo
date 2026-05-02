@@ -125,6 +125,20 @@ app/
 └── tasks/                # Celery tasks
 ```
 
+## Local Development (without Docker)
+
+```bash
+# Start PostgreSQL and Redis locally, then:
+poetry install
+poetry run alembic upgrade head
+
+# Run API (in one terminal):
+poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Run Celery worker (in another terminal):
+poetry run celery -A app.celery_app worker --loglevel=info
+```
+
 ## Code Push
 
 Use GitHub MCP (`mcp__plugin_github_github__push_files`) instead of git push to avoid SSH issues.
