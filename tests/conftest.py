@@ -1,11 +1,11 @@
 import pytest
 import pytest_asyncio
+import asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from redis.asyncio import Redis, from_url
+from redis.asyncio import Redis
 
 from app.config import settings
-from app.database import Base
 
 
 TEST_DATABASE_URL = "postgresql+asyncpg://app:app_password@localhost:5432/app_db"
@@ -28,10 +28,13 @@ async def db_session():
 
 @pytest_asyncio.fixture
 async def redis_client():
-    """Create a test redis client."""
-    client = from_url(settings.REDIS_URL, decode_responses=True)
+    """Create a redis client per test - each test gets its own connection."""
+    client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
     yield client
-    await client.aclose()
+    try:
+        await client.aclose()
+    except Exception:
+        pass
 
 
 @pytest_asyncio.fixture
@@ -39,7 +42,6 @@ async def client(redis_client):
     """Create a test client."""
     from app.main import app
     from app.dependencies import get_db, get_redis
-    from unittest.mock import patch
 
     async def override_get_db():
         engine = create_async_engine(TEST_DATABASE_URL, echo=False)

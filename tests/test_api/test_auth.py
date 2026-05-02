@@ -158,3 +158,40 @@ async def test_register_invalid_email_format(client: AsyncClient):
     }
     response = await client.post("/api/v1/auth/register", json=user_data)
     assert response.status_code == 422  # Validation error
+
+
+@pytest.mark.asyncio
+async def test_logout_success(client: AsyncClient):
+    """Test successful logout."""
+    timestamp = int(time.time() * 1000)
+    user_data = {
+        "username": f"logoutuser_{timestamp}",
+        "email": f"logoutuser_{timestamp}@test.com",
+        "password": "password123"
+    }
+    # Register first
+    register_response = await client.post("/api/v1/auth/register", json=user_data)
+    refresh_token = register_response.json()["data"]["refresh_token"]
+    # Logout
+    response = await client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})
+    assert response.status_code == 200
+    assert response.json()["message"] == "success"
+
+
+@pytest.mark.asyncio
+async def test_logout_then_refresh_fails(client: AsyncClient):
+    """Test that token refresh fails after logout."""
+    timestamp = int(time.time() * 1000)
+    user_data = {
+        "username": f"logoutrefresh_{timestamp}",
+        "email": f"logoutrefresh_{timestamp}@test.com",
+        "password": "password123"
+    }
+    # Register first
+    register_response = await client.post("/api/v1/auth/register", json=user_data)
+    refresh_token = register_response.json()["data"]["refresh_token"]
+    # Logout
+    await client.post("/api/v1/auth/logout", json={"refresh_token": refresh_token})
+    # Try to refresh with the same token
+    response = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    assert response.status_code == 401

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
+import uuid
 
 from jose import JWTError, jwt
 
@@ -19,11 +20,13 @@ class JWTHandler:
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
 
     @staticmethod
-    def create_refresh_token(data: dict[str, Any]) -> str:
+    def create_refresh_token(data: dict[str, Any]) -> tuple[str, str]:
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-        to_encode.update({"exp": expire, "type": "refresh"})
-        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+        jti = uuid.uuid4().hex
+        to_encode.update({"exp": expire, "type": "refresh", "jti": jti})
+        token = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+        return token, jti
 
     @staticmethod
     def decode_token(token: str) -> dict[str, Any] | None:
