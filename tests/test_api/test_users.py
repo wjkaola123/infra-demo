@@ -83,7 +83,7 @@ async def test_get_user(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_list_users(client: AsyncClient):
-    """Test listing all users."""
+    """Test listing users with pagination."""
     token = await get_access_token(client, "listuser")
     timestamp = int(time.time() * 1000)
     user_data = {
@@ -96,21 +96,38 @@ async def test_list_users(client: AsyncClient):
         headers={"Authorization": f"Bearer {token}"}
     )
     assert create_response.status_code == 201
-    created_id = create_response.json()["data"]["id"]
 
-    # List all users
+    # List users with pagination - verify structure
     response = await client.get(
-        "/api/v1/users/",
+        "/api/v1/users/?page=1&page_size=10",
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "success"
     assert data["status"] == 0
-    assert isinstance(data["data"], list)
-    # Verify created user is in the list
-    usernames = [u["username"] for u in data["data"]]
-    assert user_data["username"] in usernames
+    assert "items" in data["data"]
+    assert "total" in data["data"]
+    assert "page" in data["data"]
+    assert "page_size" in data["data"]
+    assert "total_pages" in data["data"]
+    assert isinstance(data["data"]["items"], list)
+    assert data["data"]["page"] == 1
+    assert data["data"]["page_size"] == 10
+    # Total should be at least the number of users we've created
+    assert data["data"]["total"] >= 1
+    # Items should be users
+    assert len(data["data"]["items"]) <= 10
+
+    # Get the last page to verify our created user exists
+    total_pages = data["data"]["total_pages"]
+    last_page_response = await client.get(
+        f"/api/v1/users/?page={total_pages}&page_size=10",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    last_page_data = last_page_response.json()["data"]
+    last_page_usernames = [u["username"] for u in last_page_data["items"]]
+    assert user_data["username"] in last_page_usernames
 
 
 @pytest.mark.asyncio

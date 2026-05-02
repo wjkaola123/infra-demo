@@ -2,7 +2,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repository.user_repository import UserRepository
 from app.handler.entity.request.user import UserCreateRequest, UserUpdateRequest
-from app.handler.entity.response.user import UserResponse
+from app.handler.entity.response.user import UserResponse, PaginatedUserResponse
 
 
 class UserService:
@@ -30,9 +30,16 @@ class UserService:
             return None
         return UserResponse.model_validate(user)
 
-    async def list_users(self) -> list[UserResponse]:
-        users = await self.repo.find_all()
-        return [UserResponse.model_validate(u) for u in users]
+    async def list_users_paginated(self, page: int = 1, page_size: int = 10) -> PaginatedUserResponse:
+        users, total = await self.repo.find_paginated(page, page_size)
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+        return PaginatedUserResponse(
+            items=[UserResponse.model_validate(u) for u in users],
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        )
 
     async def update_user(self, user_id: int, user_data: UserUpdateRequest) -> UserResponse | None:
         user = await self.repo.find_by_id(user_id)

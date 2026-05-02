@@ -1,27 +1,29 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
 from app.dependencies import get_db, get_redis, get_current_user, require_permissions
 from app.service.user_service import UserService
 from app.handler.entity.request.user import UserCreateRequest, UserUpdateRequest
-from app.handler.entity.response.user import UserResponse
+from app.handler.entity.response.user import UserResponse, PaginatedUserResponse
 from app.repository.entity.user import User
 from app.schemas.common import ApiResponse
 
 router = APIRouter()
 
 
-@router.get("/", response_model=ApiResponse[list[UserResponse]])
+@router.get("/", response_model=ApiResponse[PaginatedUserResponse])
 async def list_users(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(10, ge=1, le=100, description="每页条数"),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: User = Depends(require_permissions("users:read")),
 ):
     service = UserService(db, redis)
-    users = await service.list_users()
-    return ApiResponse(message="success", status=0, data=users)
+    result = await service.list_users_paginated(page, page_size)
+    return ApiResponse(message="success", status=0, data=result)
 
 
 @router.post("/", response_model=ApiResponse[UserResponse], status_code=201)

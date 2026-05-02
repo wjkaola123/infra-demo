@@ -31,6 +31,16 @@ class UserRepository:
         result = await self.session.execute(select(User))
         return list(result.scalars().all())
 
+    async def find_paginated(self, page: int, page_size: int) -> tuple[list[User], int]:
+        from sqlalchemy import func
+        offset = (page - 1) * page_size
+        count_result = await self.session.execute(select(func.count(User.id)))
+        total = count_result.scalar() or 0
+        result = await self.session.execute(
+            select(User).offset(offset).limit(page_size)
+        )
+        return list(result.scalars().all()), total
+
     async def update(self, user: User) -> User:
         await self.session.commit()
         await self.session.refresh(user)
