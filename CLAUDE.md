@@ -19,13 +19,13 @@ docker-compose up -d --build
 docker-compose down
 
 # Apply database migrations
-alembic upgrade head
+docker-compose exec api python -m alembic upgrade head
 
-# Run tests
-poetry run pytest
+# Run tests (in Docker container)
+docker-compose exec api python -m pytest tests/ -v
 
-# Run a single test
-poetry run pytest tests/test_api/test_users.py -v
+# Run tests locally
+poetry run pytest tests/ -v
 ```
 
 ## Architecture
@@ -40,7 +40,7 @@ Client → CORS Middleware → API Router → Endpoint
 API Router hierarchy:
   app/api/router.py (prefix: /api)
     └── app/api/v1/router.py (prefix: /v1)
-          └── app/api/v1/endpoints/users.py
+          └── app/api/v1/endpoints/{users,auth}.py
 ```
 
 ### Response Format
@@ -51,6 +51,7 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 
 ### API Endpoints
 
+**Health & Users:**
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/health` | Health check |
@@ -60,6 +61,14 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 | PUT | `/api/v1/users/{id}` | Update user by ID |
 | DELETE | `/api/v1/users/{id}` | Delete user by ID |
 
+**Authentication:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/register` | Register new user |
+| POST | `/api/v1/auth/login` | User login |
+| POST | `/api/v1/auth/refresh` | Refresh access token |
+| POST | `/api/v1/auth/logout` | Revoke refresh token |
+
 ### Dependencies
 - `app/dependencies.py` - `get_db()` for AsyncSession, `get_redis()` for Redis client
 - Injected via FastAPI `Depends()`
@@ -67,11 +76,30 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 ### Data Layer
 - SQLAlchemy async with `asyncpg` driver
 - Alembic for migrations (async support configured in `alembic/env.py`)
-- Redis async client for caching
+- Redis async client for caching and token revocation
+
+## Authentication Module
+
+### Token Structure
+- **Access token**: 30 min expiry, contains `sub` (user ID), `type: "access"`
+- **Refresh token**: 7 days expiry, contains `sub`, `type: "refresh"`, `jti` (JWT ID)
+
+### Redis Key Patterns
+- `revoked:{jti}` - Revoked token blacklist (7 day TTL)
+- `refresh:{user_id}:{jti}` - Token tracking (7 day TTL)
+
+### Logout Flow
+1. Client sends refresh_token to `/api/v1/auth/logout`
+2. Server extracts `jti` from token
+3. Server adds `jti` to Redis blacklist
+4. Subsequent refresh attempts with this token fail with 401
+
+### Auth Service Location
+- `app/tools/auth/jwt.py` - JWT creation/verification
+- `app/tools/auth/hashing.py` - Password hashing (bcrypt)
+- `app/service/auth_service.py` - Business logic
 
 ## DDD Directory Structure
-
-Follow Domain-Driven Design principles for code organization:
 
 ```
 app/
@@ -85,16 +113,24 @@ app/
 ├── handler/                       # 请求处理层
 │   └── entity/
 │       ├── request/              # 请求 DTO
-│       │   └── user.py          # UserCreateRequest, UserUpdateRequest
-│       └── response/            # 响应 DTO
-│           └── user.py          # UserResponse
+│       │   ├── user.py          # UserCreateRequest, UserUpdateRequest
+│       │   └── auth.py          # LoginRequest, RegisterRequest, RefreshRequest, LogoutRequest
+│       └── response/
+│           ├── user.py          # UserResponse
+│           └── auth.py          # TokenResponse
 ├── service/                       # 业务服务层
-│   └── user_service.py          # UserService
+│   ├── user_service.py          # UserService
+│   └── auth_service.py          # AuthService (register/login/refresh/logout)
 ├── api/                          # API 路由层
-│   └── v1/endpoints/users.py    # 用户 API 端点 (list/create/get/update/delete)
+│   └── v1/endpoints/
+│       ├── users.py             # User CRUD endpoints
+│       └── auth.py             # Auth endpoints (register/login/refresh/logout)
+├── tools/auth/                   # Auth utilities
+│   ├── jwt.py                   # JWTHandler
+│   └── hashing.py               # Password hashing
 ├── schemas/                      # Pydantic schemas
 │   └── common.py                # ApiResponse
-└── tasks/                        # Celery 任务
+└── tasks/                        # Celery tasks
     └── example_tasks.py
 ```
 
@@ -105,24 +141,26 @@ app/
 - `handler/entity/request` - 外部请求 DTO，用于 API 输入验证
 - `handler/entity/response` - 外部响应 DTO，用于 API 输出格式化
 - `service` - 业务逻辑层，编排业务操作
+- `tools/auth` - 认证工具函数
 
 ## File Structure
 
 ```
 app/
 ├── main.py              # FastAPI app + lifespan
-├── config.py             # Settings
-├── dependencies.py       # DI (get_db, get_redis)
-├── database.py           # SQLAlchemy async engine
-├── redis.py              # Redis async client
-├── celery_app.py         # Celery config
-├── api/                  # Route handlers
-├── service/              # Business logic
-├── repository/           # Data access layer
-├── entity/               # Domain entities
-├── handler/              # Request/Response DTOs
-├── schemas/              # Pydantic schemas (common.py has ApiResponse)
-└── tasks/                # Celery tasks
+├── config.py            # Settings
+├── dependencies.py      # DI (get_db, get_redis)
+├── database.py          # SQLAlchemy async engine
+├── redis.py             # Redis async client
+├── celery_app.py        # Celery config
+├── api/                 # Route handlers
+├── service/             # Business logic
+├── repository/          # Data access layer
+├── entity/              # Domain entities
+├── handler/             # Request/Response DTOs
+├── tools/auth/          # Auth utilities (jwt, hashing)
+├── schemas/             # Pydantic schemas (common.py has ApiResponse)
+└── tasks/               # Celery tasks
 ```
 
 ## Local Development (without Docker)
