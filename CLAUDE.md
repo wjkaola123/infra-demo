@@ -177,6 +177,14 @@ poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 poetry run celery -A app.celery_app worker --loglevel=info
 ```
 
+## Documentation
+
+Additional documentation files are located in the `docs/` directory:
+- `docs/Auth.md` - Authentication module documentation
+- `docs/Authentication.md` - Authentication flow details
+- `docs/Authorization.md` - Authorization/RBAC documentation
+- `docs/Plan.md` - Project plan and roadmap
+
 ## Code Push
 
 Use GitHub MCP (`mcp__plugin_github_github__push_files`) instead of git push to avoid SSH issues.
