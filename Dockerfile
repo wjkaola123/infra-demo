@@ -6,7 +6,8 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock* ./
 
 # Use pip with faster options and no build isolation
-RUN pip install --no-cache-dir --isolated \
+# Use Aliyun mirror for faster downloads in China
+RUN pip install --no-cache-dir --isolated -i https://mirrors.aliyun.com/pypi/simple/ \
     fastapi \
     "uvicorn[standard]" \
     sqlalchemy \
@@ -16,7 +17,11 @@ RUN pip install --no-cache-dir --isolated \
     celery \
     pydantic-settings \
     pydantic \
-    email-validator
+    email-validator \
+    python-jose \
+    "passlib[bcrypt]" \
+    python-multipart \
+    bcrypt
 
 # Copy application code
 COPY . .

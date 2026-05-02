@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "infra-demo"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
+    SECRET_KEY: str = "your-secret-key-change-in-production"
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://app:app_password@localhost:5432/app_db"

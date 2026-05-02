@@ -17,6 +17,10 @@ redis = {extras = ["hiredis"], version = "^5.0.0"}
 celery = {extras = ["redis"], version = "^5.4.0"}
 pydantic-settings = "^2.5.0"
 pydantic = {extras = ["email"], version = "^2.0.0"}
+python-jose = "^3.3.0"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+python-multipart = "^0.0.9"
+bcrypt = "^4.0.0"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
