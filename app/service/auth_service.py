@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.repository.entity.user import User
+from app.repository.entity.role import Role, user_roles
 from app.tools.auth.hashing import verify_password, get_password_hash
 from app.tools.auth.jwt import JWTHandler
 from app.handler.entity.response.auth import TokenResponse
@@ -35,6 +36,15 @@ class AuthService:
         self.db.add(user)
         await self.db.commit()
         await self.db.refresh(user)
+
+        # Auto-assign editor role to new users
+        editor_role = await self.db.execute(select(Role).where(Role.name == "editor"))
+        editor = editor_role.scalar_one_or_none()
+        if editor:
+            await self.db.execute(
+                user_roles.insert().values(user_id=user.id, role_id=editor.id)
+            )
+            await self.db.commit()
 
         return await self._create_tokens(user.id)
 

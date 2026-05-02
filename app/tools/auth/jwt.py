@@ -44,3 +44,12 @@ class JWTHandler:
         if payload.get("type") != expected_type:
             return None
         return payload
+
+    @staticmethod
+    def decode_token_without_verify(token: str) -> dict[str, Any] | None:
+        """Decode token without verification - used for extracting claims from valid tokens."""
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": False})
+            return payload
+        except JWTError:
+            return None
