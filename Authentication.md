@@ -22,7 +22,7 @@ users (已存在, 扩展)
 
 ### Step 1.1: 添加依赖
 
-**pyproject.toml 新增:**
+**pyproject.toml 新增:
 ```toml
 python-jose = "^3.3.0"
 passlib = {extras = ["bcrypt"]}
