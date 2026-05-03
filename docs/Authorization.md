@@ -1,14 +1,14 @@
-# 鉴权模块 (Authorization)
+# Authorization Module
 
-**目标：** 实现 RBAC 角色权限系统，保护 API 端点。
+**Goal:** Implement RBAC role-permission system, protect API endpoints.
 
 ## Context
 
-鉴权模块依赖认证模块。在用户获得 JWT token 后，通过角色和权限系统控制用户对 API 的访问。
+The authorization module depends on the authentication module. After a user obtains a JWT token, the role and permission system controls the user's access to the API.
 
-## 技术方案
+## Technical Solution
 
-### 数据库模型
+### Database Model
 
 ```
 roles
@@ -19,54 +19,54 @@ permissions
 ├── id, name, description
 └── created_at
 
-user_roles (多对多)
+user_roles (many-to-many)
 ├── user_id, role_id
 └── assigned_at
 
-role_permissions (多对多)
+role_permissions (many-to-many)
 ├── role_id, permission_id
 └── granted_at
 ```
 
-### 权限命名 (Resource:Action)
+### Permission Naming (Resource:Action)
 
 ```
-users:read         # 读取用户列表/详情
-users:write        # 创建/更新用户
-users:delete       # 删除用户
-roles:read         # 读取角色
-roles:write        # 创建/更新角色
-roles:delete       # 删除角色
-permissions:read  # 读取权限
+users:read         # Read user list/details
+users:write        # Create/update users
+users:delete       # Delete users
+roles:read         # Read roles
+roles:write        # Create/update roles
+roles:delete       # Delete roles
+permissions:read  # Read permissions
 ```
 
-### 默认角色
+### Default Roles
 
-- `admin`: 全部权限
+- `admin`: All permissions
 - `editor`: users:read, users:write
 - `viewer`: users:read
 
-## 实施步骤
+## Implementation Steps
 
-### Step 2.1: 创建权限相关模型
+### Step 2.1: Create Permission-related Models
 
 **app/repository/entity/role.py:**
 ```python
-- Role 模型
-- Permission 模型
-- user_roles 关联表
-- role_permissions 关联表
+- Role model
+- Permission model
+- user_roles association table
+- role_permissions association table
 ```
 
-### Step 2.2: 创建鉴权依赖注入
+### Step 2.2: Create Authorization Dependency Injection
 
 **app/dependencies.py:**
-- `get_current_user()` - 从 JWT 获取当前用户
-- `require_permissions(*perms)` - 权限检查装饰器
+- `get_current_user()` - Get current user from JWT
+- `require_permissions(*perms)` - Permission check decorator
 
-### Step 2.3: 保护现有 API
+### Step 2.3: Protect Existing APIs
 
-在 users API 添加权限依赖:
+Add permission dependencies to users API:
 ```
 GET /api/v1/users/           - require_permissions("users:read")
 POST /api/v1/users/          - require_permissions("users:write")
@@ -75,36 +75,36 @@ PUT /api/v1/users/{id}       - require_permissions("users:write")
 DELETE /api/v1/users/{id}    - require_permissions("users:delete")
 ```
 
-### Step 2.4: 创建 Alembic 迁移
+### Step 2.4: Create Alembic Migration
 
 ```
 003_create_roles_permissions_tables.py
 ```
 
-### Step 2.5: 编写测试用例
+### Step 2.5: Write Test Cases
 
 ```
 test_requires_auth.py
 test_permission_check.py
 ```
 
-## 关键文件
+## Key Files
 
-| 文件 | 用途 |
-|------|------|
-| `app/repository/entity/role.py` | Role/Permission ORM 模型 |
+| File | Purpose |
+|------|---------|
+| `app/repository/entity/role.py` | Role/Permission ORM models |
 | `app/dependencies.py` | get_current_user, require_permissions |
 
-## 验证方案
+## Verification Plan
 
 ```bash
-# 1. 无token访问应返回401
+# 1. Access without token should return 401
 curl http://localhost:8000/api/v1/users/  # 401 Unauthorized
 
-# 2. 使用token访问受保护接口
+# 2. Access protected endpoint with token
 curl -H "Authorization: Bearer <token>" http://localhost:8000/api/v1/users/
 
-# 3. 无权限用户访问应返回403
+# 3. User without permission should return 403
 curl -H "Authorization: Bearer <viewer_token>" \
   -X DELETE http://localhost:8000/api/v1/users/1  # 403 Forbidden
 ```

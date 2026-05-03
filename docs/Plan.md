@@ -1,78 +1,78 @@
-# FastAPI 后台服务框架搭建计划
+# FastAPI Backend Service Framework Plan
 
 ## Context
 
-构建一个完整的 FastAPI 后台服务框架，作为后续业务开发的基础。项目目录 `/home/wj/projects/infra-backend` 目前为空，需要从头搭建整个框架。
+Build a complete FastAPI backend service framework as the foundation for subsequent business development. Project directory `/home/wj/projects/infra-backend` is currently empty, need to build the entire framework from scratch.
 
-**核心要求：**
-- FastAPI (最新版本) 作为 Web 框架
-- Poetry 进行依赖管理
-- PostgreSQL 数据库 (异步访问)
-- Redis 缓存 (异步访问)
-- Celery 分布式任务队列
-- 全异步架构 (API + DB + Cache)
+**Core Requirements:**
+- FastAPI (latest version) as web framework
+- Poetry for dependency management
+- PostgreSQL database (async access)
+- Redis cache (async access)
+- Celery distributed task queue
+- Full async architecture (API + DB + Cache)
 
 ---
 
-## 项目目录结构
+## Project Directory Structure
 
 ```
 infra-backend/
-├── pyproject.toml              # Poetry 项目配置
-├── poetry.lock                 # 锁定依赖版本
-├── .env.example                # 环境变量示例
-├── .env                        # 实际环境变量 (本地开发)
-├── docker-compose.yml          # 本地开发服务 (PostgreSQL, Redis)
-├── alembic.ini                 # 数据库迁移配置
-├── alembic/                    # Alembic 迁移目录
+├── pyproject.toml              # Poetry project config
+├── poetry.lock                 # Locked dependency versions
+├── .env.example                # Environment variable example
+├── .env                        # Actual environment variables (local development)
+├── docker-compose.yml          # Local development services (PostgreSQL, Redis)
+├── alembic.ini                 # Database migration config
+├── alembic/                    # Alembic migration directory
 │   ├── env.py
 │   ├── script.mako
 │   └── versions/
 │       └── 001_initial.py
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                 # FastAPI 应用入口
-│   ├── config.py               # 配置管理 (pydantic-settings)
-│   ├── dependencies.py         # 依赖注入 (DB session, Redis)
-│   ├── database.py             # 数据库引擎和 session factory
-│   ├── redis.py                # Redis 连接池
-│   ├── celery_app.py           # Celery 应用配置
-│   ├── models/                 # SQLAlchemy ORM 模型
+│   ├── main.py                 # FastAPI application entry
+│   ├── config.py               # Configuration management (pydantic-settings)
+│   ├── dependencies.py         # Dependency injection (DB session, Redis)
+│   ├── database.py             # Database engine and session factory
+│   ├── redis.py                # Redis connection pool
+│   ├── celery_app.py           # Celery application config
+│   ├── models/                 # SQLAlchemy ORM models
 │   │   ├── __init__.py
-│   │   └── base.py             # Base 模型类
-│   │   └── user.py             # 示例用户模型
-│   ├── schemas/                # Pydantic 请求/响应模型
+│   │   └── base.py             # Base model class
+│   │   └── user.py             # Sample user model
+│   ├── schemas/                # Pydantic request/response models
 │   │   ├── __init__.py
-│   │   └── user.py             # 示例用户 schema
-│   ├── api/                    # API 路由
+│   │   └── user.py             # Sample user schema
+│   ├── api/                    # API routes
 │   │   ├── __init__.py
-│   │   ├── router.py           # 主路由聚合
+│   │   ├── router.py           # Main route aggregation
 │   │   └── v1/
 │   │       ├── __init__.py
 │   │       ├── endpoints/
 │   │       │   ├── __init__.py
-│   │       │   └── users.py    # 示例用户 API
-│   │       └── router.py       # v1 路由聚合
-│   ├── services/               # 业务逻辑层
+│   │       │   └── users.py    # Sample user API
+│   │       └── router.py       # v1 route aggregation
+│   ├── services/               # Business logic layer
 │   │   ├── __init__.py
-│   │   └── user_service.py     # 示例用户服务
-│   └── tasks/                  # Celery 任务
+│   │   └── user_service.py     # Sample user service
+│   └── tasks/                  # Celery tasks
 │       ├── __init__.py
-│       └── example_tasks.py    # 示例后台任务
-└── tests/                      # 测试目录
+│       └── example_tasks.py    # Sample background tasks
+└── tests/                      # Test directory
     ├── __init__.py
-    ├── conftest.py             # 测试配置
+    ├── conftest.py             # Test configuration
     └── test_api/
         └── test_users.py
 ```
 
 ---
 
-## 实施步骤
+## Implementation Steps
 
-### Step 1: Poetry 项目初始化
+### Step 1: Poetry Project Initialization
 
-创建 `pyproject.toml`：
+Create `pyproject.toml`:
 
 ```toml
 [tool.poetry]
@@ -104,13 +104,13 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 ```
 
-执行: `poetry install`
+Run: `poetry install`
 
 ---
 
-### Step 2: Docker Compose 本地服务
+### Step 2: Docker Compose Local Services
 
-创建 `docker-compose.yml`：
+Create `docker-compose.yml`:
 
 ```yaml
 version: "3.8"
@@ -138,13 +138,13 @@ volumes:
   redis_data:
 ```
 
-执行: `docker-compose up -d`
+Run: `docker-compose up -d`
 
 ---
 
-### Step 3: 配置管理 (pydantic-settings)
+### Step 3: Configuration Management (pydantic-settings)
 
-创建 `app/config.py`：
+Create `app/config.py`:
 
 ```python
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -172,7 +172,7 @@ class Settings(BaseSettings):
 settings = Settings()
 ```
 
-创建 `.env.example`：
+Create `.env.example`:
 
 ```env
 APP_NAME=infra-backend
@@ -185,9 +185,9 @@ CELERY_RESULT_BACKEND=redis://localhost:6379/0
 
 ---
 
-### Step 4: 数据库异步引擎
+### Step 4: Database Async Engine
 
-创建 `app/database.py`：
+Create `app/database.py`:
 
 ```python
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
@@ -212,9 +212,9 @@ class Base(DeclarativeBase):
 
 ---
 
-### Step 5: Redis 异步连接
+### Step 5: Redis Async Connection
 
-创建 `app/redis.py`：
+Create `app/redis.py`:
 
 ```python
 from redis.asyncio import Redis, from_url
@@ -227,9 +227,9 @@ redis_client: Redis = from_url(settings.REDIS_URL, decode_responses=True)
 
 ---
 
-### Step 6: 依赖注入
+### Step 6: Dependency Injection
 
-创建 `app/dependencies.py`：
+Create `app/dependencies.py`:
 
 ```python
 from typing import AsyncGenerator
@@ -255,9 +255,9 @@ async def get_redis() -> Redis:
 
 ---
 
-### Step 7: 示例模型和 Schema
+### Step 7: Sample Models and Schemas
 
-创建 `app/models/base.py`：
+Create `app/models/base.py`:
 
 ```python
 from sqlalchemy import Column, Integer, DateTime
@@ -270,7 +270,7 @@ class TimestampMixin:
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 ```
 
-创建 `app/models/user.py`：
+Create `app/models/user.py`:
 
 ```python
 from sqlalchemy import Column, Integer, String, Boolean
@@ -287,7 +287,7 @@ class User(Base, TimestampMixin):
     is_active = Column(Boolean, default=True)
 ```
 
-创建 `app/schemas/user.py`：
+Create `app/schemas/user.py`:
 
 ```python
 from pydantic import BaseModel, EmailStr
@@ -311,9 +311,9 @@ class UserResponse(BaseModel):
 
 ---
 
-### Step 8: Celery 配置
+### Step 8: Celery Configuration
 
-创建 `app/celery_app.py`：
+Create `app/celery_app.py`:
 
 ```python
 from celery import Celery
@@ -337,7 +337,7 @@ celery_app.conf.update(
 )
 ```
 
-创建 `app/tasks/example_tasks.py`：
+Create `app/tasks/example_tasks.py`:
 
 ```python
 import time
@@ -352,9 +352,9 @@ def long_running_task(duration: int) -> str:
 
 ---
 
-### Step 9: API 路由结构
+### Step 9: API Route Structure
 
-创建 `app/api/v1/endpoints/users.py`：
+Create `app/api/v1/endpoints/users.py`:
 
 ```python
 from fastapi import APIRouter, Depends, HTTPException
@@ -405,7 +405,7 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
     return user
 ```
 
-创建 `app/api/v1/router.py`：
+Create `app/api/v1/router.py`:
 
 ```python
 from fastapi import APIRouter
@@ -415,7 +415,7 @@ router = APIRouter()
 router.include_router(users_router, prefix="/users", tags=["users"])
 ```
 
-创建 `app/api/router.py`：
+Create `app/api/router.py`:
 
 ```python
 from fastapi import APIRouter
@@ -427,9 +427,9 @@ router.include_router(v1_router, prefix="/v1")
 
 ---
 
-### Step 10: FastAPI 主入口 (Lifespan)
+### Step 10: FastAPI Main Entry (Lifespan)
 
-创建 `app/main.py`：
+Create `app/main.py`:
 
 ```python
 from contextlib import asynccontextmanager
@@ -482,11 +482,11 @@ async def health_check():
 
 ---
 
-### Step 11: Alembic 数据库迁移
+### Step 11: Alembic Database Migration
 
-初始化 Alembic: `alembic init alembic`
+Initialize Alembic: `alembic init alembic`
 
-修改 `alembic/env.py` 支持异步：
+Modify `alembic/env.py` to support async:
 
 ```python
 from logging.config import fileConfig
@@ -496,7 +496,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.config import settings
-from app.models.base import Base  # 导入所有模型
+from app.models.base import Base  # Import all models
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
@@ -546,72 +546,72 @@ else:
     run_migrations_online()
 ```
 
-创建初始迁移: `alembic revision --autogenerate -m "initial"`
-应用迁移: `alembic upgrade head`
+Create initial migration: `alembic revision --autogenerate -m "initial"`
+Apply migration: `alembic upgrade head`
 
 ---
 
-## 验证步骤
+## Verification Steps
 
-1. **启动基础服务:**
+1. **Start base services:**
    ```bash
    docker-compose up -d
    ```
 
-2. **安装依赖:**
+2. **Install dependencies:**
    ```bash
    poetry install
    ```
 
-3. **应用数据库迁移:**
+3. **Apply database migrations:**
    ```bash
    alembic upgrade head
    ```
 
-4. **启动 FastAPI:**
+4. **Start FastAPI:**
    ```bash
    poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-5. **验证 API:**
-   - 访问 http://localhost:8000/docs 查看 Swagger UI
-   - 访问 http://localhost:8000/health 验证健康检查
-   - POST http://localhost:8000/api/v1/users 创建用户
-   - GET http://localhost:8000/api/v1/users/{id} 获取用户
+5. **Verify API:**
+   - Visit http://localhost:8000/docs to view Swagger UI
+   - Visit http://localhost:8000/health to verify health check
+   - POST http://localhost:8000/api/v1/users to create user
+   - GET http://localhost:8000/api/v1/users/{id} to get user
 
-6. **启动 Celery Worker:**
+6. **Start Celery Worker:**
    ```bash
    poetry run celery -A app.celery_app worker --loglevel=info
    ```
 
-7. **验证 Celery 任务:**
+7. **Verify Celery tasks:**
    ```python
    from app.tasks.example_tasks import long_running_task
    result = long_running_task.delay(5)
-   print(result.get())  # 等待结果
+   print(result.get())  # Wait for result
    ```
 
 ---
 
-## 关键文件清单
+## Key Files List
 
-| 文件 | 用途 |
-|------|------|
-| `pyproject.toml` | Poetry 依赖管理 |
-| `docker-compose.yml` | PostgreSQL + Redis 服务 |
-| `app/config.py` | pydantic-settings 配置 |
+| File | Purpose |
+|------|---------|
+| `pyproject.toml` | Poetry dependency management |
+| `docker-compose.yml` | PostgreSQL + Redis services |
+| `app/config.py` | pydantic-settings configuration |
 | `app/database.py` | SQLAlchemy async engine |
 | `app/redis.py` | Redis async client |
-| `app/dependencies.py` | FastAPI 依赖注入 |
-| `app/main.py` | FastAPI 入口 + lifespan |
-| `app/celery_app.py` | Celery 配置 |
-| `alembic/env.py` | 异步迁移支持 |
+| `app/dependencies.py` | FastAPI dependency injection |
+| `app/main.py` | FastAPI entry + lifespan |
+| `app/celery_app.py` | Celery configuration |
+| `alembic/env.py` | Async migration support |
 
 ---
 
-## 注意事项
+## Notes
 
-1. **异步一致性:** 所有 DB 操作使用 `AsyncSession`，Redis 使用 `redis.asyncio.Redis`
-2. **Lifespan 管理:** 使用 `@asynccontextmanager` 统一管理资源生命周期
-3. **依赖注入:** 通过 `Depends()` 提供 session 和 redis client，确保请求级隔离
-4. **Celery 与 FastAPI 分离:** Celery worker 作为独立进程运行，共享配置模块
+1. **Async consistency:** All DB operations use `AsyncSession`, Redis uses `redis.asyncio.Redis`
+2. **Lifespan management:** Use `@asynccontextmanager` to uniformly manage resource lifecycle
+3. **Dependency injection:** Provide session and redis client through `Depends()`, ensuring request-level isolation
+4. **Celery and FastAPI separation:** Celery worker runs as an independent process, sharing configuration module

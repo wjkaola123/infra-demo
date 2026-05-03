@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Table, ForeignKey
 from app.repository.entity.base import Base, TimestampMixin
 
 
-# 关联表：用户-角色
+# Association table: user-role
 user_roles = Table(
     "user_roles",
     Base.metadata,
@@ -10,7 +10,7 @@ user_roles = Table(
     Column("role_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
 )
 
-# 关联表：角色-权限
+# Association table: role-permission
 role_permissions = Table(
     "role_permissions",
     Base.metadata,

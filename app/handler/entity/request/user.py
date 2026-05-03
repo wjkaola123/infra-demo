@@ -13,5 +13,5 @@ class UserUpdateRequest(BaseModel):
 
 
 class UserListRequest(BaseModel):
-    page: int = Field(1, ge=1, description="页码")
-    page_size: int = Field(10, ge=1, le=100, description="每页条数")
+    page: int = Field(1, ge=1, description="Page number")
+    page_size: int = Field(10, ge=1, le=100, description="Items per page")

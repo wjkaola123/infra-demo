@@ -1,52 +1,52 @@
 # Role Management API
 
-完善 RBAC 体系，新增角色 CRUD API、角色权限分配、用户角色分配接口。
+Complete the RBAC system, add role CRUD API, role permission assignment, and user role assignment interfaces.
 
-## 新增文件
+## New Files
 
-| 文件 | 说明 |
-|------|------|
+| File | Description |
+|------|-------------|
 | `app/handler/entity/request/role.py` | RoleCreateRequest, RoleUpdateRequest, PermissionAssignRequest, UserRoleAssignRequest |
 | `app/handler/entity/response/role.py` | RoleResponse, PermissionResponse, PaginatedRoleResponse, UserRoleResponse |
-| `app/repository/role_repository.py` | RoleRepository (CRUD + 关系管理) |
-| `app/api/v1/endpoints/roles.py` | 角色管理 API 端点 |
+| `app/repository/role_repository.py` | RoleRepository (CRUD + relationship management) |
+| `app/api/v1/endpoints/roles.py` | Role management API endpoints |
 
-## 修改文件
+## Modified Files
 
-| 文件 | 说明 |
-|------|------|
-| `app/service/role_service.py` | 新增 create_role, get_role, list_roles_paginated, update_role, delete_role, assign_permissions, remove_permission, get_user_roles, assign_role_to_user, remove_role_from_user |
-| `app/api/v1/router.py` | 注册 roles_router |
+| File | Description |
+|------|-------------|
+| `app/service/role_service.py` | Added create_role, get_role, list_roles_paginated, update_role, delete_role, assign_permissions, remove_permission, get_user_roles, assign_role_to_user, remove_role_from_user |
+| `app/api/v1/router.py` | Register roles_router |
 
-## API 端点
+## API Endpoints
 
 ```
-角色管理:
-  GET    /api/v1/roles/              - 角色列表（分页）
-  POST   /api/v1/roles/              - 创建角色
-  GET    /api/v1/roles/{role_id}      - 获取角色
-  PUT    /api/v1/roles/{role_id}     - 更新角色
-  DELETE /api/v1/roles/{role_id}     - 删除角色
+Role Management:
+  GET    /api/v1/roles/              - List roles (paginated)
+  POST   /api/v1/roles/              - Create role
+  GET    /api/v1/roles/{role_id}      - Get role
+  PUT    /api/v1/roles/{role_id}     - Update role
+  DELETE /api/v1/roles/{role_id}     - Delete role
 
-角色权限分配:
-  POST   /api/v1/roles/{role_id}/permissions              - 分配权限
-  DELETE /api/v1/roles/{role_id}/permissions/{perm_id}    - 移除权限
+Role Permission Assignment:
+  POST   /api/v1/roles/{role_id}/permissions              - Assign permissions
+  DELETE /api/v1/roles/{role_id}/permissions/{perm_id}    - Remove permission
 
-用户角色分配:
-  GET    /api/v1/roles/users/{user_id}/roles             - 获取用户角色
-  POST   /api/v1/roles/users/{user_id}/roles             - 分配角色
-  DELETE /api/v1/roles/users/{user_id}/roles/{role_id}   - 移除角色
+User Role Assignment:
+  GET    /api/v1/roles/users/{user_id}/roles             - Get user roles
+  POST   /api/v1/roles/users/{user_id}/roles             - Assign role
+  DELETE /api/v1/roles/users/{user_id}/roles/{role_id}   - Remove role
 
-用户权限查询:
-  GET    /api/v1/users/{user_id}/permissions              - 获取用户所有权限（直接返回权限列表）
+User Permission Query:
+  GET    /api/v1/users/{user_id}/permissions              - Get user all permissions (returns permission list directly)
 ```
 
-## 权限控制
+## Permission Control
 
-使用 `require_permissions("roles:read")`, `require_permissions("roles:write")`, `require_permissions("roles:delete")`
+Use `require_permissions("roles:read")`, `require_permissions("roles:write")`, `require_permissions("roles:delete")`
 
-## 验证
+## Verification
 
-1. API 重建容器后测试各端点
-2. 使用 admin token 调用验证权限控制
-3. 运行测试 `docker-compose exec api python -m pytest tests/ -v`
+1. Rebuild container and test all endpoints
+2. Use admin token to verify permission control
+3. Run tests `docker-compose exec api python -m pytest tests/ -v`
