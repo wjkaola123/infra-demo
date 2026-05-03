@@ -109,7 +109,15 @@ def require_permissions(*required_permissions: str):
             return current_user
 
         # Check if user has all required permissions
-        missing = set(required_permissions) - user_permissions
+        # Flatten in case a list was passed as single arg
+        perms = []
+        for p in required_permissions:
+            if isinstance(p, list):
+                perms.extend(p)
+            else:
+                perms.append(p)
+
+        missing = set(perms) - user_permissions
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
