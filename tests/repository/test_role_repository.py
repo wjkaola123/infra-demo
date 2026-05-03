@@ -12,7 +12,6 @@ async def test_create_role(db_session):
     assert role.description == "Test role"
 
 
-
 @pytest.mark.asyncio
 async def test_get_by_id(db_session):
     repository = RoleRepository(db_session)
