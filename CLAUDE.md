@@ -69,8 +69,23 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 | POST | `/api/v1/auth/refresh` | Refresh access token |
 | POST | `/api/v1/auth/logout` | Revoke refresh token |
 
+**Roles API:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/roles/` | List roles (paginated) |
+| POST | `/api/v1/roles/` | Create role |
+| GET | `/api/v1/roles/{id}` | Get role by ID |
+| PUT | `/api/v1/roles/{id}` | Update role |
+| DELETE | `/api/v1/roles/{id}` | Delete role |
+| POST | `/api/v1/roles/{id}/permissions` | Assign permissions to role |
+| DELETE | `/api/v1/roles/{id}/permissions/{pid}` | Remove permission from role |
+| GET | `/api/v1/roles/users/{user_id}/roles` | Get user's roles |
+| POST | `/api/v1/roles/users/{user_id}/roles` | Assign role to user |
+| DELETE | `/api/v1/roles/users/{user_id}/roles/{role_id}` | Remove role from user |
+| GET | `/api/v1/roles/users/{user_id}/permissions` | Get user's permissions |
+
 ### Dependencies
-- `app/dependencies.py` - `get_db()` for AsyncSession, `get_redis()` for Redis client
+- `app/dependencies.py` - `get_db()` for AsyncSession, `get_redis()` for Redis client, `get_current_user()` for auth, `require_permissions()` for RBAC
 - Injected via FastAPI `Depends()`
 
 ### Data Layer
@@ -120,11 +135,13 @@ app/
 │           └── auth.py          # TokenResponse
 ├── service/                       # 业务服务层
 │   ├── user_service.py          # UserService
-│   └── auth_service.py          # AuthService (register/login/refresh/logout)
+│   ├── auth_service.py          # AuthService (register/login/refresh/logout)
+│   └── role_service.py          # RoleService (CRUD + RBAC)
 ├── api/                          # API 路由层
 │   └── v1/endpoints/
 │       ├── users.py             # User CRUD endpoints
-│       └── auth.py             # Auth endpoints (register/login/refresh/logout)
+│       ├── auth.py              # Auth endpoints (register/login/refresh/logout)
+│       └── roles.py            # Roles/RBAC endpoints
 ├── tools/auth/                   # Auth utilities
 │   ├── jwt.py                   # JWTHandler
 │   └── hashing.py               # Password hashing
