@@ -5,9 +5,10 @@ from app.repository.role_repository import RoleRepository
 @pytest.mark.asyncio
 async def test_create_role(db_session):
     repository = RoleRepository(db_session)
-    role = await repository.create(name="admin", description="Admin role")
-    assert role.name == "admin"
+    role = await repository.create(name="test_admin_role", description="Admin role")
+    assert role.name == "test_admin_role"
     assert role.description == "Admin role"
+
 
 
 @pytest.mark.asyncio
@@ -37,6 +38,7 @@ async def test_get_by_name(db_session):
     assert role.name == "unique_role"
 
 
+
 @pytest.mark.asyncio
 async def test_get_by_name_not_found(db_session):
     repository = RoleRepository(db_session)
@@ -64,6 +66,7 @@ async def test_update(db_session):
     assert updated is not None
     assert updated.name == "updated_name"
     assert updated.description == "New desc"
+
 
 
 @pytest.mark.asyncio
