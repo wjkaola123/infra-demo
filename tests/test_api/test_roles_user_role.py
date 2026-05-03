@@ -87,7 +87,7 @@ async def test_get_user_roles(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_assign_role_to_user(client: AsyncClient):
-    """Test assigning a role to a user."""
+    """Test assigning a role to a user - using existing admin user."""
     token = await get_access_token(client, "assignrole")
 
     # Create a role
@@ -98,13 +98,13 @@ async def test_assign_role_to_user(client: AsyncClient):
     )
     role_id = create_resp.json()["data"]["id"]
 
-    # Assign role to user (user_id 999999 won't exist but tests the endpoint)
+    # Use user_id=1 which should exist
     response = await client.post(
-        "/api/v1/roles/users/999999/roles",
+        f"/api/v1/roles/users/1/roles",
         json={"role_id": role_id},
         headers={"Authorization": f"Bearer {token}"}
     )
-    # Either success or user not found
+    # User 1 may or may not exist, accept both
     assert response.status_code in [200, 404]
 
 

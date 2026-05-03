@@ -58,73 +58,106 @@ class RoleRepository:
             )
             permission = result.scalar_one_or_none()
             if permission:
-                role.permissions.append(permission)
+                await self.session.execute(
+                    role_permissions.insert().values(role_id=role_id, permission_id=perm_id)
+                )
         await self.session.commit()
-        return role.permissions
+        # Return permissions directly from query
+        result = await self.session.execute(
+            select(Permission)
+            .join(role_permissions, role_permissions.c.permission_id == Permission.id)
+            .where(role_permissions.c.role_id == role_id)
+        )
+        return list(result.scalars().all())
 
     async def remove_permission(self, role_id: int, permission_id: int) -> bool:
-        role = await self.get_by_id(role_id)
-        if not role:
+        # Check if the permission assignment exists
+        result = await self.session.execute(
+            select(role_permissions)
+            .where(role_permissions.c.role_id == role_id)
+            .where(role_permissions.c.permission_id == permission_id)
+        )
+        existing = result.scalar_one_or_none()
+        if not existing:
             return False
-        for perm in role.permissions:
-            if perm.id == permission_id:
-                role.permissions.remove(perm)
-                await self.session.commit()
-                return True
-        return False
+        await self.session.execute(
+            role_permissions.delete()
+            .where(role_permissions.c.role_id == role_id)
+            .where(role_permissions.c.permission_id == permission_id)
+        )
+        await self.session.commit()
+        return True
 
     async def get_role_permissions(self, role_id: int) -> list[Permission]:
-        role = await self.get_by_id(role_id)
-        return role.permissions if role else []
+        result = await self.session.execute(
+            select(Permission)
+            .join(role_permissions, role_permissions.c.permission_id == Permission.id)
+            .where(role_permissions.c.role_id == role_id)
+        )
+        return list(result.scalars().all())
 
-    async def assign_role_to_user(self, user_id: int, role_id: int) -> None:
+    async def assign_role_to_user(self, user_id: int, role_id: int) -> bool:
+        # Check if user exists
         from app.repository.entity.user import User
         result = await self.session.execute(
             select(User).where(User.id == user_id)
         )
         user = result.scalar_one_or_none()
         if not user:
-            return
-        role = await self.get_by_id(role_id)
+            return False
+        result = await self.session.execute(
+            select(Role).where(Role.id == role_id)
+        )
+        role = result.scalar_one_or_none()
         if not role:
-            return
-        user.roles.append(role)
+            return False
+        # Check if already assigned
+        check = await self.session.execute(
+            select(user_roles)
+            .where(user_roles.c.user_id == user_id)
+            .where(user_roles.c.role_id == role_id)
+        )
+        if check.scalar_one_or_none():
+            return True
+        await self.session.execute(
+            user_roles.insert().values(user_id=user_id, role_id=role_id)
+        )
         await self.session.commit()
+        return True
 
     async def get_user_roles(self, user_id: int) -> list[Role]:
-        from app.repository.entity.user import User
         result = await self.session.execute(
-            select(User).where(User.id == user_id)
+            select(Role)
+            .join(user_roles, user_roles.c.role_id == Role.id)
+            .where(user_roles.c.user_id == user_id)
         )
-        user = result.scalar_one_or_none()
-        return user.roles if user else []
+        return list(result.scalars().all())
 
     async def remove_role_from_user(self, user_id: int, role_id: int) -> bool:
-        from app.repository.entity.user import User
+        # Check if assignment exists
         result = await self.session.execute(
-            select(User).where(User.id == user_id)
+            select(user_roles)
+            .where(user_roles.c.user_id == user_id)
+            .where(user_roles.c.role_id == role_id)
         )
-        user = result.scalar_one_or_none()
-        if not user:
+        existing = result.scalar_one_or_none()
+        if not existing:
             return False
-        role = await self.get_by_id(role_id)
-        if not role:
-            return False
-        if role in user.roles:
-            user.roles.remove(role)
-            await self.session.commit()
-            return True
-        return False
+        await self.session.execute(
+            user_roles.delete()
+            .where(user_roles.c.user_id == user_id)
+            .where(user_roles.c.role_id == role_id)
+        )
+        await self.session.commit()
+        return True
 
     async def get_user_permissions(self, user_id: int) -> list[Permission]:
-        from app.repository.entity.user import User
         result = await self.session.execute(
-            select(User).where(User.id == user_id)
+            select(Permission)
+            .join(role_permissions, role_permissions.c.permission_id == Permission.id)
+            .join(Role, Role.id == role_permissions.c.role_id)
+            .join(user_roles, user_roles.c.role_id == Role.id)
+            .where(user_roles.c.user_id == user_id)
+            .distinct()
         )
-        user = result.scalar_one_or_none()
-        if not user:
-            return []
-        permissions = []
-        for role in user.roles:
-            permissions.extend(role.permissions)
-        return list(set(permissions))
+        return list(result.scalars().all())

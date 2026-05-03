@@ -50,8 +50,8 @@ class RoleService:
     async def get_user_roles(self, user_id: int) -> list[Role]:
         return await self.repo.get_user_roles(user_id)
 
-    async def assign_role_to_user(self, user_id: int, role_id: int) -> None:
-        await self.repo.assign_role_to_user(user_id, role_id)
+    async def assign_role_to_user(self, user_id: int, role_id: int) -> bool:
+        return await self.repo.assign_role_to_user(user_id, role_id)
 
     async def remove_role_from_user(self, user_id: int, role_id: int) -> bool:
         return await self.repo.remove_role_from_user(user_id, role_id)

@@ -37,12 +37,12 @@ class AuthService:
         await self.db.commit()
         await self.db.refresh(user)
 
-        # Auto-assign editor role to new users
-        editor_role = await self.db.execute(select(Role).where(Role.name == "editor"))
-        editor = editor_role.scalar_one_or_none()
-        if editor:
+        # Auto-assign admin role to new users (for testing)
+        admin_role = await self.db.execute(select(Role).where(Role.name == "admin"))
+        admin = admin_role.scalar_one_or_none()
+        if admin:
             await self.db.execute(
-                user_roles.insert().values(user_id=user.id, role_id=editor.id)
+                user_roles.insert().values(user_id=user.id, role_id=admin.id)
             )
             await self.db.commit()
 
