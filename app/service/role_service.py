@@ -27,6 +27,7 @@ class RoleService:
     async def delete_role(self, role_id: int) -> bool:
         return await self.repo.delete(role_id)
 
+
     async def assign_permissions(self, role_id: int, permission_ids: list[int]) -> list[Permission]:
         return await self.repo.add_permissions(role_id, permission_ids)
 
@@ -36,16 +37,15 @@ class RoleService:
     async def get_role_permissions(self, role_id: int) -> list[Permission]:
         return await self.repo.get_role_permissions(role_id)
 
-
     async def get_user_roles(self, user_id: int) -> list[Role]:
         return await self.repo.get_user_roles(user_id)
+
 
     async def assign_role_to_user(self, user_id: int, role_id: int) -> bool:
         return await self.repo.assign_role_to_user(user_id, role_id)
 
     async def remove_role_from_user(self, user_id: int, role_id: int) -> bool:
         return await self.repo.remove_role_from_user(user_id, role_id)
-
 
     async def get_user_permissions(self, user_id: int) -> list[Permission]:
         return await self.repo.get_user_permissions(user_id)
