@@ -1,38 +1,71 @@
-diff --git a/docker-compose.yml b/docker-compose.yml
-index 5f778b2..d74c411 100644
---- a/docker-compose.yml
-+++ b/docker-compose.yml
-@@ -31,6 +31,8 @@ services:
-       dockerfile: Dockerfile
-     ports:
-       - "8000:8000"
-+    volumes:
-+      - .:/app
-     environment:
-       - DATABASE_URL=postgresql+asyncpg://app:app_password@postgres:5432/app_db
-       - REDIS_URL=redis://redis:6379/0
-@@ -42,12 +44,15 @@ services:
-         condition: service_healthy
-       redis:
-         condition: service_healthy
--    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-+    working_dir: /app
- 
-   celery:
-     build:
-       context: .
-       dockerfile: Dockerfile
-+    volumes:
-+      - .:/app
-     environment:
-       - DATABASE_URL=postgresql+asyncpg://app:app_password@postgres:5432/app_db
-       - REDIS_URL=redis://redis:6379/0
-@@ -59,6 +64,7 @@ services:
-       redis:
-         condition: service_healthy
-     command: celery -A app.celery_app worker --loglevel=info
-+    working_dir: /app
- 
- volumes:
-   postgres_data:
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app_password
+      POSTGRES_DB: app_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://app:app_password@postgres:5432/app_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DEBUG=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    working_dir: /app
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://app:app_password@postgres:5432/app_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.celery_app worker --loglevel=info
+    working_dir: /app
+
+volumes:
+  postgres_data:
+  redis_data:
