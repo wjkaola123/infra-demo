@@ -1,99 +1,60 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
-from app.repository.entity.user import User
-from app.repository.entity.role import Role, Permission, user_roles, role_permissions
+from redis.asyncio import Redis
+from app.repository.role_repository import RoleRepository
+from app.repository.entity.role import Role, Permission
 
 
 class RoleService:
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    def __init__(self, db: AsyncSession, redis: Redis | None = None):
+        self.repo = RoleRepository(db)
+        self.redis = redis
 
-    async def assign_role(self, user_id: int, role_name: str) -> bool:
-        """Assign a role to a user."""
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise ValueError("User not found")
+    async def create_role(self, name: str, description: str | None = None) -> Role:
+        return await self.repo.create(name, description)
 
-        result = await self.db.execute(select(Role).where(Role.name == role_name))
-        role = result.scalar_one_or_none()
+    async def get_role(self, role_id: int) -> Role | None:
+        return await self.repo.get_by_id(role_id)
+
+    async def list_roles(self) -> list[Role]:
+        return await self.repo.list_all()
+
+    async def list_roles_paginated(self, page: int = 1, page_size: int = 10) -> tuple[list[Role], int]:
+        return await self.repo.list_paginated(page, page_size)
+
+    async def update_role(self, role_id: int, name: str | None = None, description: str | None = None) -> Role | None:
+        role = await self.repo.get_by_id(role_id)
         if not role:
-            raise ValueError(f"Role '{role_name}' not found")
+            return None
+        if name is not None:
+            role.name = name
+        if description is not None:
+            role.description = description
+        return await self.repo.update(role)
 
-        # Check if already has this role
-        check = await self.db.execute(
-            select(user_roles).where(
-                user_roles.c.user_id == user_id,
-                user_roles.c.role_id == role.id
-            )
-        )
-        if check.scalar_one_or_none():
-            return True  # Already has the role
-
-        # Assign role
-        await self.db.execute(
-            user_roles.insert().values(user_id=user_id, role_id=role.id)
-        )
-        await self.db.commit()
+    async def delete_role(self, role_id: int) -> bool:
+        role = await self.repo.get_by_id(role_id)
+        if not role:
+            return False
+        await self.repo.delete(role)
         return True
 
-    async def has_permission(self, user_id: int, permission: str) -> bool:
-        """Check if a user has a specific permission."""
-        # Check if user is admin (has all permissions)
-        admin_query = (
-            select(Role.id)
-            .join(user_roles, user_roles.c.role_id == Role.id)
-            .where(user_roles.c.user_id == user_id)
-            .where(Role.name == "admin")
-        )
-        admin_result = await self.db.execute(admin_query)
-        if admin_result.scalar_one_or_none():
-            return True
+    async def assign_permissions(self, role_id: int, permission_ids: list[int]) -> list[Permission]:
+        return await self.repo.add_permissions(role_id, permission_ids)
 
-        # Check specific permission
-        query = (
-            select(Permission.name)
-            .join(role_permissions, role_permissions.c.permission_id == Permission.id)
-            .join(Role, Role.id == role_permissions.c.role_id)
-            .join(user_roles, user_roles.c.role_id == Role.id)
-            .where(user_roles.c.user_id == user_id)
-            .where(Permission.name == permission)
-        )
-        result = await self.db.execute(query)
-        return result.scalar_one_or_none() is not None
+    async def remove_permission(self, role_id: int, permission_id: int) -> bool:
+        return await self.repo.remove_permission(role_id, permission_id)
 
-    async def get_user_permissions(self, user_id: int) -> list[str]:
-        """Get all permissions for a user."""
-        # Check if user is admin
-        admin_query = (
-            select(Role.id)
-            .join(user_roles, user_roles.c.role_id == Role.id)
-            .where(user_roles.c.user_id == user_id)
-            .where(Role.name == "admin")
-        )
-        admin_result = await self.db.execute(admin_query)
-        if admin_result.scalar_one_or_none():
-            # Return all permissions for admin
-            all_perms = await self.db.execute(select(Permission.name))
-            return [row[0] for row in all_perms.fetchall()]
+    async def get_role_permissions(self, role_id: int) -> list[Permission]:
+        return await self.repo.get_role_permissions(role_id)
 
-        query = (
-            select(Permission.name)
-            .join(role_permissions, role_permissions.c.permission_id == Permission.id)
-            .join(Role, Role.id == role_permissions.c.role_id)
-            .join(user_roles, user_roles.c.role_id == Role.id)
-            .where(user_roles.c.user_id == user_id)
-        )
-        result = await self.db.execute(query)
-        return [row[0] for row in result.fetchall()]
+    async def get_user_roles(self, user_id: int) -> list[Role]:
+        return await self.repo.get_user_roles(user_id)
 
-    async def get_user_roles(self, user_id: int) -> list[str]:
-        """Get all roles for a user."""
-        query = (
-            select(Role.name)
-            .join(user_roles, user_roles.c.role_id == Role.id)
-            .where(user_roles.c.user_id == user_id)
-        )
-        result = await self.db.execute(query)
-        return [row[0] for row in result.fetchall()]
+    async def assign_role_to_user(self, user_id: int, role_id: int) -> None:
+        await self.repo.assign_role_to_user(user_id, role_id)
+
+    async def remove_role_from_user(self, user_id: int, role_id: int) -> bool:
+        return await self.repo.remove_role_from_user(user_id, role_id)
+
+    async def get_user_permissions(self, user_id: int) -> list[Permission]:
+        return await self.repo.get_user_permissions(user_id)
