@@ -120,26 +120,26 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 
 ```
 app/
-├── repository/                    # 数据访问层
-│   ├── entity/                    # 数据库实体（SQLAlchemy ORM Model）
+├── repository/                    # Data access layer
+│   ├── entity/                    # Database entities (SQLAlchemy ORM Model)
 │   │   ├── base.py               # Base + TimestampMixin
 │   │   └── user.py               # User ORM Model
-│   └── user_repository.py        # UserRepository 数据访问类
-├── entity/                        # 业务实体（Domain Entity）
+│   └── user_repository.py        # UserRepository data access class
+├── entity/                        # Business entities (Domain Entity)
 │   └── user.py                   # UserEntity
-├── handler/                       # 请求处理层
+├── handler/                       # Request handling layer
 │   └── entity/
-│       ├── request/              # 请求 DTO
+│       ├── request/              # Request DTOs
 │       │   ├── user.py          # UserCreateRequest, UserUpdateRequest
 │       │   └── auth.py          # LoginRequest, RegisterRequest, RefreshRequest, LogoutRequest
 │       └── response/
 │           ├── user.py          # UserResponse
 │           └── auth.py          # TokenResponse
-├── service/                       # 业务服务层
+├── service/                       # Business service layer
 │   ├── user_service.py          # UserService
 │   ├── auth_service.py          # AuthService (register/login/refresh/logout)
 │   └── role_service.py          # RoleService (CRUD + RBAC)
-├── api/                          # API 路由层
+├── api/                          # API routing layer
 │   └── v1/endpoints/
 │       ├── users.py             # User CRUD endpoints
 │       ├── auth.py              # Auth endpoints (register/login/refresh/logout)
@@ -154,13 +154,13 @@ app/
 ```
 
 **Layer responsibilities:**
-- `repository/entity` - SQLAlchemy ORM 模型，对应数据库表结构
-- `repository` - Repository 模式，封装数据库访问逻辑
-- `entity` - 业务实体，独立于数据库的业务对象
-- `handler/entity/request` - 外部请求 DTO，用于 API 输入验证
-- `handler/entity/response` - 外部响应 DTO，用于 API 输出格式化
-- `service` - 业务逻辑层，编排业务操作
-- `tools/auth` - 认证工具函数
+- `repository/entity` - SQLAlchemy ORM models, corresponding to database table structures
+- `repository` - Repository pattern, encapsulates database access logic
+- `entity` - Business entities, business objects independent of the database
+- `handler/entity/request` - External request DTOs, used for API input validation
+- `handler/entity/response` - External response DTOs, used for API output formatting
+- `service` - Business logic layer, orchestrates business operations
+- `tools/auth` - Authentication utility functions
 
 ## File Structure
 
@@ -180,18 +180,4 @@ app/
 ├── tools/auth/          # Auth utilities (jwt, hashing)
 ├── schemas/             # Pydantic schemas (common.py has ApiResponse)
 └── tasks/               # Celery tasks
-```
-
-## Local Development (without Docker)
-
-```bash
-# Start PostgreSQL and Redis locally, then:
-poetry install
-poetry run alembic upgrade head
-
-# Run API (in one terminal):
-poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# Run Celery worker (in another terminal):
-poetry run celery -A app.celery_app worker --loglevel=info
 ```
