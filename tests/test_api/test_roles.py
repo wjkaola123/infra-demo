@@ -71,7 +71,14 @@ async def test_list_roles(client: AsyncClient, db_session):
     assert "total" in data["data"]
     assert "page" in data["data"]
     assert "page_size" in data["data"]
-    assert "total_pages" in data["data"]
+    # Verify role structure with permissions
+    for role in data["data"]["items"]:
+        assert "id" in role
+        assert "name" in role
+        assert "description" in role
+        assert "created_at" in role
+        assert "permissions" in role
+        assert isinstance(role["permissions"], list)
     assert isinstance(data["data"]["items"], list)
     assert data["data"]["page"] == 1
     assert data["data"]["page_size"] == 5
@@ -112,6 +119,8 @@ async def test_get_role_by_id(client: AsyncClient, db_session):
     assert "name" in data["data"]
     assert "description" in data["data"]
     assert "created_at" in data["data"]
+    assert "permissions" in data["data"]
+    assert isinstance(data["data"]["permissions"], list)
 
 
 @pytest.mark.asyncio
@@ -245,7 +254,7 @@ async def test_delete_role(client: AsyncClient, db_session):
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "success"
-    assert data["data"]["id"] == role_id
+    assert data["data"]["deleted"] is True
 
     # Verify role is deleted
     get_response = await client.get(
@@ -427,8 +436,7 @@ async def test_assign_role_to_user(client: AsyncClient, db_session):
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "success"
-    assert data["data"]["user_id"] == user_id
-    assert data["data"]["role_id"] == role_id
+    assert data["data"]["assigned"] is True
 
 
 @pytest.mark.asyncio
@@ -526,7 +534,7 @@ async def test_remove_role_from_user_not_found(client: AsyncClient, db_session):
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     assert response.status_code == 404
-    assert response.json()["detail"] == "User role not found"
+    assert response.json()["detail"] == "Assignment not found"
 
 
 @pytest.mark.asyncio

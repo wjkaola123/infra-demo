@@ -20,6 +20,7 @@ class RoleResponse(BaseModel):
     description: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    permissions: list["PermissionResponse"] = []
 
     model_config = {"from_attributes": True}
 
