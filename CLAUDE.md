@@ -75,14 +75,24 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 | GET | `/api/v1/roles/` | List roles (paginated) |
 | POST | `/api/v1/roles/` | Create role |
 | GET | `/api/v1/roles/{id}` | Get role by ID |
-| PUT | `/api/v1/roles/{id}` | Update role |
+| PUT | `/api/v1/roles/{id}` | Update role (name, description, and optionally permission_ids) |
 | DELETE | `/api/v1/roles/{id}` | Delete role |
-| POST | `/api/v1/roles/{id}/permissions` | Assign permissions to role |
-| DELETE | `/api/v1/roles/{id}/permissions/{pid}` | Remove permission from role |
+| PUT | `/api/v1/roles/{id}/permissions` | Replace all permissions for role |
+| GET | `/api/v1/roles/permissions` | List all permissions |
+| POST | `/api/v1/roles/{id}/permissions` | Assign permissions to role (additive) |
 | GET | `/api/v1/roles/users/{user_id}/roles` | Get user's roles |
 | POST | `/api/v1/roles/users/{user_id}/roles` | Assign role to user |
 | DELETE | `/api/v1/roles/users/{user_id}/roles/{role_id}` | Remove role from user |
 | GET | `/api/v1/roles/users/{user_id}/permissions` | Get user's permissions |
+
+**PUT /api/v1/roles/{id} Request Body:**
+```json
+{
+  "name": "string (optional)",
+  "description": "string (optional)",
+  "permission_ids": [1, 2] // optional, empty array clears all permissions
+}
+```
 
 ### Dependencies
 - `app/dependencies.py` - `get_db()` for AsyncSession, `get_redis()` for Redis client, `get_current_user()` for auth, `require_permissions()` for RBAC
