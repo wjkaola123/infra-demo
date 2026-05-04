@@ -713,9 +713,9 @@ async def test_list_roles_filter_by_name(client: AsyncClient, db_session):
     token = await get_admin_token(client, db_session, "filterbyname")
     timestamp = int(time.time() * 1000)
 
-    # Create roles with specific names
-    role1_name = f"search_admin_{timestamp}"
-    role2_name = f"search_editor_{timestamp}"
+    # Create roles with specific names using unique prefix
+    role1_name = f"fn_{timestamp}_admin"
+    role2_name = f"fn_{timestamp}_editor"
     role3_name = f"other_{timestamp}"
 
     for name in [role1_name, role2_name, role3_name]:
@@ -725,9 +725,9 @@ async def test_list_roles_filter_by_name(client: AsyncClient, db_session):
             headers={"Authorization": f"Bearer {token}"}
         )
 
-    # Filter by "search" - should find 2 roles
+    # Filter by unique prefix - should find 2 roles
     response = await client.get(
-        f"/api/v1/roles/?name=search",
+        f"/api/v1/roles/?name=fn_{timestamp}",
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200

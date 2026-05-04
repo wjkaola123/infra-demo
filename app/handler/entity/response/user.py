@@ -1,5 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel
+from app.handler.entity.response.role import RoleResponse
 
 
 class UserResponse(BaseModel):
@@ -9,6 +10,7 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    roles: list[RoleResponse] = []
 
     model_config = {"from_attributes": True}
 

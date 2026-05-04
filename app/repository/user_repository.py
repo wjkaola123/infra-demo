@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.repository.entity.user import User
 from app.handler.entity.request.user import UserCreateRequest
 
@@ -37,7 +38,7 @@ class UserRepository:
         count_result = await self.session.execute(select(func.count(User.id)))
         total = count_result.scalar() or 0
         result = await self.session.execute(
-            select(User).offset(offset).limit(page_size)
+            select(User).offset(offset).limit(page_size).options(selectinload(User.roles))
         )
         return list(result.scalars().all()), total
 

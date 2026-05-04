@@ -118,6 +118,9 @@ async def test_list_users(client: AsyncClient):
     assert data["data"]["total"] >= 1
     # Items should be users
     assert len(data["data"]["items"]) <= 10
+    # Items should include roles field
+    assert "roles" in data["data"]["items"][0]
+    assert isinstance(data["data"]["items"][0]["roles"], list)
 
     # Get the last page to verify our created user exists
     total_pages = data["data"]["total_pages"]
