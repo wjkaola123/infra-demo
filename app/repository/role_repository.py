@@ -228,6 +228,26 @@ class RoleRepository:
         await self.session.commit()
         return True
 
+    async def set_user_roles(self, user_id: int, role_ids: list[int]) -> bool:
+        from app.repository.entity.user import User
+        result = await self.session.execute(select(User).where(User.id == user_id))
+        if not result.scalar_one_or_none():
+            return False
+        if role_ids:
+            result = await self.session.execute(select(Role).where(Role.id.in_(role_ids)))
+            found_roles = list(result.scalars().all())
+            if len(found_roles) != len(role_ids):
+                return False
+        await self.session.execute(
+            user_roles.delete().where(user_roles.c.user_id == user_id)
+        )
+        for role_id in role_ids:
+            await self.session.execute(
+                user_roles.insert().values(user_id=user_id, role_id=role_id)
+            )
+        await self.session.commit()
+        return True
+
     async def list_all_permissions(self) -> list[Permission]:
         result = await self.session.execute(select(Permission))
         return list(result.scalars().all())

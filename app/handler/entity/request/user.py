@@ -10,6 +10,7 @@ class UserUpdateRequest(BaseModel):
     username: str | None = None
     email: EmailStr | None = None
     is_active: bool | None = None
+    role_ids: list[int] | None = None
 
 
 class UserListRequest(BaseModel):

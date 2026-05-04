@@ -1,6 +1,7 @@
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repository.user_repository import UserRepository
+from app.repository.role_repository import RoleRepository
 from app.handler.entity.request.user import UserCreateRequest, UserUpdateRequest
 from app.handler.entity.response.user import UserResponse, PaginatedUserResponse
 
@@ -57,6 +58,12 @@ class UserService:
 
         if user_data.is_active is not None:
             user.is_active = user_data.is_active
+
+        if user_data.role_ids is not None:
+            role_repo = RoleRepository(self.repo.session)
+            success = await role_repo.set_user_roles(user_id, user_data.role_ids)
+            if not success:
+                raise ValueError("User or roles not found")
 
         updated = await self.repo.update(user)
         await self.redis.delete(f"user:{user.username}")
