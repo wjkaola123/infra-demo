@@ -43,7 +43,7 @@ class RoleRepository:
         )
         return list(result.scalars().all()), total
 
-    async def update(self, role_id: int, name: str | None = None, description: str | None = None) -> Role | None:
+    async def update(self, role_id: int, name: str | None = None, description: str | None = None, permission_ids: list[int] | None = None) -> Role | None:
         role = await self.get_by_id(role_id)
         if not role:
             return None
@@ -51,6 +51,19 @@ class RoleRepository:
             role.name = name
         if description is not None:
             role.description = description
+        if permission_ids is not None:
+            await self.session.execute(
+                role_permissions.delete().where(role_permissions.c.role_id == role_id)
+            )
+            for perm_id in permission_ids:
+                result = await self.session.execute(
+                    select(Permission).where(Permission.id == perm_id)
+                )
+                permission = result.scalar_one_or_none()
+                if permission:
+                    await self.session.execute(
+                        role_permissions.insert().values(role_id=role_id, permission_id=perm_id)
+                    )
         await self.session.commit()
         await self.session.refresh(role)
         return role

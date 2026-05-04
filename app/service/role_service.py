@@ -21,8 +21,8 @@ class RoleService:
     async def list_roles_paginated(self, page: int = 1, page_size: int = 10) -> tuple[list[Role], int]:
         return await self.repo.list_paginated(page, page_size)
 
-    async def update_role(self, role_id: int, name: str | None = None, description: str | None = None) -> Role | None:
-        return await self.repo.update(role_id, name, description)
+    async def update_role(self, role_id: int, name: str | None = None, description: str | None = None, permission_ids: list[int] | None = None) -> Role | None:
+        return await self.repo.update(role_id, name, description, permission_ids)
 
     async def delete_role(self, role_id: int) -> bool:
         return await self.repo.delete(role_id)

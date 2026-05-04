@@ -218,6 +218,112 @@ async def test_update_role(client: AsyncClient, db_session):
 
 
 @pytest.mark.asyncio
+async def test_update_role_with_permissions(client: AsyncClient, db_session):
+    """Test updating role and its permissions in one PUT request."""
+    token = await get_admin_token(client, db_session, "updatewithperms")
+    timestamp = int(time.time() * 1000)
+
+    # Create a role
+    create_response = await client.post(
+        "/api/v1/roles/",
+        json={"name": f"perm_update_{timestamp}", "description": "Test role"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert create_response.status_code == 201
+    role_id = create_response.json()["data"]["id"]
+
+    # Update role with permissions
+    response = await client.put(
+        f"/api/v1/roles/{role_id}",
+        json={
+            "name": f"updated_perm_{timestamp}",
+            "description": "Updated with permissions",
+            "permission_ids": [1, 2, 4]
+        },
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"]["name"] == f"updated_perm_{timestamp}"
+    assert len(data["data"]["permissions"]) == 3
+    permission_names = [p["name"] for p in data["data"]["permissions"]]
+    assert "users:read" in permission_names
+    assert "users:write" in permission_names
+    assert "roles:read" in permission_names
+
+
+@pytest.mark.asyncio
+async def test_update_role_clear_permissions(client: AsyncClient, db_session):
+    """Test clearing role permissions via PUT with empty permission_ids."""
+    token = await get_admin_token(client, db_session, "clearroleperms")
+    timestamp = int(time.time() * 1000)
+
+    # Create a role with permissions
+    create_response = await client.post(
+        "/api/v1/roles/",
+        json={"name": f"role_to_clear_{timestamp}", "description": "Test"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    role_id = create_response.json()["data"]["id"]
+
+    # Assign permissions via PUT /permissions endpoint
+    await client.put(
+        f"/api/v1/roles/{role_id}/permissions",
+        json={"permission_ids": [1, 2, 3]},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    # Clear permissions via PUT /{role_id} with empty list
+    response = await client.put(
+        f"/api/v1/roles/{role_id}",
+        json={"name": f"cleared_{timestamp}", "permission_ids": []},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"]["name"] == f"cleared_{timestamp}"
+    assert len(data["data"]["permissions"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_update_role_preserve_permissions_when_not_provided(client: AsyncClient, db_session):
+    """Test that permissions are preserved when permission_ids is not in request."""
+    token = await get_admin_token(client, db_session, "preserveperms")
+    timestamp = int(time.time() * 1000)
+
+    # Create a role
+    create_response = await client.post(
+        "/api/v1/roles/",
+        json={"name": f"preserve_test_{timestamp}", "description": "Test"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    role_id = create_response.json()["data"]["id"]
+
+    # Assign permissions
+    await client.put(
+        f"/api/v1/roles/{role_id}/permissions",
+        json={"permission_ids": [4, 5, 6]},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    # Update only name, without providing permission_ids
+    response = await client.put(
+        f"/api/v1/roles/{role_id}",
+        json={"name": f"new_name_{timestamp}"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"]["name"] == f"new_name_{timestamp}"
+    # Permissions should still be there (4, 5, 6)
+    assert len(data["data"]["permissions"]) == 3
+    permission_names = [p["name"] for p in data["data"]["permissions"]]
+    assert "roles:read" in permission_names
+    assert "roles:write" in permission_names
+    assert "roles:delete" in permission_names
+
+
+@pytest.mark.asyncio
 async def test_update_role_not_found(client: AsyncClient, db_session):
     """Test updating a non-existent role."""
     token = await get_admin_token(client, db_session, "updatenotfound")

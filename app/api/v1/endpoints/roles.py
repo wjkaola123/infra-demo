@@ -89,7 +89,7 @@ async def update_role(
     current_user: User = Depends(require_permissions(["roles:write"])),
 ):
     service = RoleService(db, redis)
-    role = await service.update_role(role_id, request.name, request.description)
+    role = await service.update_role(role_id, request.name, request.description, request.permission_ids)
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
     return ApiResponse(data=RoleResponse.model_validate(role))

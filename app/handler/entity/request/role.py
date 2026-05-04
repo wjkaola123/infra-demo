@@ -10,6 +10,7 @@ class RoleCreateRequest(BaseModel):
 class RoleUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=50, description="Role name")
     description: Optional[str] = Field(None, max_length=255, description="Role description")
+    permission_ids: Optional[list[int]] = Field(None, description="List of permission IDs to assign")
 
 
 class PermissionAssignRequest(BaseModel):

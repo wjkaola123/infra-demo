@@ -113,3 +113,56 @@ async def test_replace_permissions(db_session):
     # Replace with empty list (clear all)
     result = await repository.replace_permissions(role.id, [])
     assert len(result) == 0
+
+
+@pytest.mark.asyncio
+async def test_update_with_permissions(db_session):
+    """Test updating role name, description and permissions in one call."""
+    repository = RoleRepository(db_session)
+    name = f"update_perm_{int(time.time() * 1000)}"
+    role = await repository.create(name=name, description="Original")
+
+    # Update with permissions
+    updated = await repository.update(role.id, description="New desc", permission_ids=[1, 2])
+    assert updated is not None
+    assert updated.description == "New desc"
+    perms = await repository.get_role_permissions(role.id)
+    assert len(perms) == 2
+
+
+@pytest.mark.asyncio
+async def test_update_clear_permissions_with_empty_list(db_session):
+    """Test clearing all permissions by passing empty list."""
+    repository = RoleRepository(db_session)
+    name = f"clear_perm_{int(time.time() * 1000)}"
+    role = await repository.create(name=name, description="Test")
+
+    # Add permissions first
+    await repository.replace_permissions(role.id, [1, 2, 3])
+    perms = await repository.get_role_permissions(role.id)
+    assert len(perms) == 3
+
+    # Clear with empty list
+    updated = await repository.update(role.id, permission_ids=[])
+    assert updated is not None
+    perms = await repository.get_role_permissions(role.id)
+    assert len(perms) == 0
+
+
+@pytest.mark.asyncio
+async def test_update_without_changing_permissions(db_session):
+    """Test that updating without permission_ids preserves existing permissions."""
+    repository = RoleRepository(db_session)
+    name = f"preserve_perm_{int(time.time() * 1000)}"
+    role = await repository.create(name=name, description="Test")
+
+    # Add permissions
+    await repository.replace_permissions(role.id, [1, 2])
+    perms_before = await repository.get_role_permissions(role.id)
+    assert len(perms_before) == 2
+
+    # Update only name, keep permissions
+    updated = await repository.update(role.id, name="New Name")
+    assert updated.name == "New Name"
+    perms_after = await repository.get_role_permissions(role.id)
+    assert len(perms_after) == 2
