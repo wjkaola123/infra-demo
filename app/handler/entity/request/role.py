@@ -18,3 +18,7 @@ class PermissionAssignRequest(BaseModel):
 
 class UserRoleAssignRequest(BaseModel):
     role_id: int = Field(..., description="Role ID")
+
+
+class RolePermissionUpdateRequest(BaseModel):
+    permission_ids: list[int] = Field(..., description="List of permission IDs")

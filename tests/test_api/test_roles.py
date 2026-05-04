@@ -278,9 +278,9 @@ async def test_delete_role_not_found(client: AsyncClient, db_session):
 
 
 @pytest.mark.asyncio
-async def test_assign_permissions_to_role(client: AsyncClient, db_session):
-    """Test assigning permissions to a role."""
-    token = await get_admin_token(client, db_session, "assignperm")
+async def test_update_role_permissions(client: AsyncClient, db_session):
+    """Test updating role permissions with PUT (replace all)."""
+    token = await get_admin_token(client, db_session, "updateperm")
     timestamp = int(time.time() * 1000)
 
     # Create a role
@@ -291,8 +291,8 @@ async def test_assign_permissions_to_role(client: AsyncClient, db_session):
     )
     role_id = create_response.json()["data"]["id"]
 
-    # Assign permissions (1=users:read, 2=users:write, 3=users:delete)
-    response = await client.post(
+    # Replace permissions (PUT, not POST)
+    response = await client.put(
         f"/api/v1/roles/{role_id}/permissions",
         json={"permission_ids": [1, 2]},
         headers={"Authorization": f"Bearer {token}"}
@@ -307,59 +307,36 @@ async def test_assign_permissions_to_role(client: AsyncClient, db_session):
 
 
 @pytest.mark.asyncio
-async def test_remove_permission_from_role(client: AsyncClient, db_session):
-    """Test removing a permission from a role."""
-    token = await get_admin_token(client, db_session, "removeperm")
-    timestamp = int(time.time() * 1000)
-
-    # Create a role with permissions
-    create_response = await client.post(
-        "/api/v1/roles/",
-        json={"name": f"remove_perm_role_{timestamp}", "description": "Test"},
-        headers={"Authorization": f"Bearer {token}"}
-    )
-    role_id = create_response.json()["data"]["id"]
-
-    # Assign permission first
-    await client.post(
-        f"/api/v1/roles/{role_id}/permissions",
-        json={"permission_ids": [1]},
-        headers={"Authorization": f"Bearer {token}"}
-    )
-
-    # Remove the permission
-    response = await client.delete(
-        f"/api/v1/roles/{role_id}/permissions/1",
-        headers={"Authorization": f"Bearer {token}"}
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["message"] == "success"
-    # API returns data: null on success
-    assert data["data"] is None or data["data"].get("removed") is True
-
-
-@pytest.mark.asyncio
-async def test_remove_permission_not_found(client: AsyncClient, db_session):
-    """Test removing a non-existent permission from a role."""
-    token = await get_admin_token(client, db_session, "removepermnotfound")
+async def test_update_role_permissions_empty(client: AsyncClient, db_session):
+    """Test clearing all role permissions by passing empty list."""
+    token = await get_admin_token(client, db_session, "clearperm")
     timestamp = int(time.time() * 1000)
 
     # Create a role
     create_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"remove_perm_none_{timestamp}", "description": "Test"},
+        json={"name": f"clear_perm_role_{timestamp}", "description": "Test"},
         headers={"Authorization": f"Bearer {token}"}
     )
     role_id = create_response.json()["data"]["id"]
 
-    # Try to remove non-existent permission
-    response = await client.delete(
-        f"/api/v1/roles/{role_id}/permissions/99999",
+    # First assign some permissions
+    await client.put(
+        f"/api/v1/roles/{role_id}/permissions",
+        json={"permission_ids": [1, 2]},
         headers={"Authorization": f"Bearer {token}"}
     )
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Permission not found"
+
+    # Clear all permissions with empty list
+    response = await client.put(
+        f"/api/v1/roles/{role_id}/permissions",
+        json={"permission_ids": []},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "success"
+    assert len(data["data"]) == 0
 
 
 @pytest.mark.asyncio

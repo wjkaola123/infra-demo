@@ -8,8 +8,8 @@ from app.service.role_service import RoleService
 from app.handler.entity.request.role import (
     RoleCreateRequest,
     RoleUpdateRequest,
-    PermissionAssignRequest,
     UserRoleAssignRequest,
+    RolePermissionUpdateRequest,
 )
 from app.handler.entity.response.role import (
     RoleResponse,
@@ -99,32 +99,17 @@ async def delete_role(
     return ApiResponse(data={"deleted": True})
 
 
-@router.post("/{role_id}/permissions", response_model=ApiResponse[list[PermissionResponse]])
-async def assign_permissions_to_role(
+@router.put("/{role_id}/permissions", response_model=ApiResponse[list[PermissionResponse]])
+async def update_role_permissions(
     role_id: int,
-    request: PermissionAssignRequest,
+    request: RolePermissionUpdateRequest,
     db: AsyncSession = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
     current_user: User = Depends(require_permissions(["roles:write"])),
 ):
     service = RoleService(db, redis)
-    permissions = await service.assign_permissions(role_id, request.permission_ids)
+    permissions = await service.replace_permissions(role_id, request.permission_ids)
     return ApiResponse(data=[PermissionResponse.model_validate(p) for p in permissions])
-
-
-@router.delete("/{role_id}/permissions/{permission_id}", response_model=ApiResponse[dict])
-async def remove_permission_from_role(
-    role_id: int,
-    permission_id: int,
-    db: AsyncSession = Depends(get_db),
-    redis: Redis | None = Depends(get_redis),
-    current_user: User = Depends(require_permissions(["roles:write"])),
-):
-    service = RoleService(db, redis)
-    success = await service.remove_permission(role_id, permission_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Permission not found")
-    return ApiResponse(data={"removed": True})
 
 
 @router.get("/users/{user_id}/roles", response_model=ApiResponse[list[RoleResponse]])

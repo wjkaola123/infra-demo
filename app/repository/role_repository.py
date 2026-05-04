@@ -102,6 +102,30 @@ class RoleRepository:
         await self.session.commit()
         return True
 
+    async def replace_permissions(self, role_id: int, permission_ids: list[int]) -> list[Permission]:
+        role = await self.get_by_id(role_id)
+        if not role:
+            return []
+        await self.session.execute(
+            role_permissions.delete().where(role_permissions.c.role_id == role_id)
+        )
+        for perm_id in permission_ids:
+            result = await self.session.execute(
+                select(Permission).where(Permission.id == perm_id)
+            )
+            permission = result.scalar_one_or_none()
+            if permission:
+                await self.session.execute(
+                    role_permissions.insert().values(role_id=role_id, permission_id=perm_id)
+                )
+        await self.session.commit()
+        result = await self.session.execute(
+            select(Permission)
+            .join(role_permissions, role_permissions.c.permission_id == Permission.id)
+            .where(role_permissions.c.role_id == role_id)
+        )
+        return list(result.scalars().all())
+
     async def get_role_permissions(self, role_id: int) -> list[Permission]:
         result = await self.session.execute(
             select(Permission)

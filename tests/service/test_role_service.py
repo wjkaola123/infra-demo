@@ -84,3 +84,19 @@ async def test_role_service_get_user_permissions(db_session):
     service = RoleService(db_session, redis=None)
     permissions = await service.get_user_permissions(99999)
     assert isinstance(permissions, list)
+
+
+@pytest.mark.asyncio
+async def test_role_service_replace_permissions(db_session):
+    """Test RoleService.replace_permissions."""
+    service = RoleService(db_session, redis=None)
+    name = f"replace_perm_{int(time.time() * 1000)}"
+    role = await service.create_role(name, "Test")
+
+    # Replace with permissions
+    result = await service.replace_permissions(role.id, [1, 2])
+    assert len(result) == 2
+
+    # Clear permissions
+    result = await service.replace_permissions(role.id, [])
+    assert len(result) == 0

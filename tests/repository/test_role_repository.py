@@ -93,3 +93,23 @@ async def test_delete_not_found(db_session):
     repository = RoleRepository(db_session)
     result = await repository.delete(99999)
     assert result is False
+
+
+@pytest.mark.asyncio
+async def test_replace_permissions(db_session):
+    """Test replacing all permissions for a role."""
+    repository = RoleRepository(db_session)
+    name = f"perm_role_{int(time.time() * 1000)}"
+    role = await repository.create(name=name, description="Test")
+
+    # Replace with permissions 1, 2
+    result = await repository.replace_permissions(role.id, [1, 2])
+    assert len(result) == 2
+
+    # Replace with only permission 3
+    result = await repository.replace_permissions(role.id, [3])
+    assert len(result) == 1
+
+    # Replace with empty list (clear all)
+    result = await repository.replace_permissions(role.id, [])
+    assert len(result) == 0

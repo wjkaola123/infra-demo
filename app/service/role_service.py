@@ -36,6 +36,9 @@ class RoleService:
     async def get_role_permissions(self, role_id: int) -> list[Permission]:
         return await self.repo.get_role_permissions(role_id)
 
+    async def replace_permissions(self, role_id: int, permission_ids: list[int]) -> list[Permission]:
+        return await self.repo.replace_permissions(role_id, permission_ids)
+
     async def get_user_roles(self, user_id: int) -> list[Role]:
         return await self.repo.get_user_roles(user_id)
 
