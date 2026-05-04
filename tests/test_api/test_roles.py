@@ -82,6 +82,11 @@ async def test_list_roles(client: AsyncClient, db_session):
     assert isinstance(data["data"]["items"], list)
     assert data["data"]["page"] == 1
     assert data["data"]["page_size"] == 5
+    assert "total_pages" in data["data"]
+    assert isinstance(data["data"]["total_pages"], int)
+    # Verify total_pages calculation is correct
+    expected_total_pages = (data["data"]["total"] + 5 - 1) // 5 if data["data"]["total"] > 0 else 0
+    assert data["data"]["total_pages"] == expected_total_pages
     # Should have admin, editor, viewer at minimum
     assert data["data"]["total"] >= 3
     # Verify role structure

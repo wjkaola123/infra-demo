@@ -33,12 +33,14 @@ async def list_roles(
 ):
     service = RoleService(db, redis)
     roles, total = await service.list_roles_paginated(page, page_size)
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 0
     return ApiResponse(
         data=PaginatedRoleResponse(
             items=[RoleResponse.model_validate(r) for r in roles],
             total=total,
             page=page,
             page_size=page_size,
+            total_pages=total_pages,
         )
     )
 
