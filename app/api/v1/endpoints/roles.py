@@ -32,11 +32,16 @@ async def list_roles(
     current_user: User = Depends(require_permissions(["roles:read"])),
 ):
     service = RoleService(db, redis)
-    roles, total = await service.list_roles_paginated(page, page_size)
+    roles, total, user_counts = await service.list_roles_paginated(page, page_size)
     total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+    items = []
+    for r in roles:
+        role_response = RoleResponse.model_validate(r)
+        role_response.assigned_users_count = user_counts.get(r.id, 0)
+        items.append(role_response)
     return ApiResponse(
         data=PaginatedRoleResponse(
-            items=[RoleResponse.model_validate(r) for r in roles],
+            items=items,
             total=total,
             page=page,
             page_size=page_size,

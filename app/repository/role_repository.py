@@ -34,14 +34,30 @@ class RoleRepository:
         )
         return list(result.scalars().all())
 
-    async def list_paginated(self, page: int, page_size: int) -> tuple[list[Role], int]:
+    async def list_paginated(self, page: int, page_size: int) -> tuple[list[Role], int, dict[int, int]]:
         offset = (page - 1) * page_size
         count_result = await self.session.execute(select(func.count(Role.id)))
         total = count_result.scalar() or 0
-        result = await self.session.execute(
-            select(Role).offset(offset).limit(page_size).options(selectinload(Role.permissions))
+
+        user_count_subquery = (
+            select(user_roles.c.role_id, func.count(user_roles.c.user_id).label('user_count'))
+            .group_by(user_roles.c.role_id)
+            .subquery()
         )
-        return list(result.scalars().all()), total
+        result = await self.session.execute(
+            select(Role, func.coalesce(user_count_subquery.c.user_count, 0).label('assigned_users_count'))
+            .outerjoin(user_count_subquery, Role.id == user_count_subquery.c.role_id)
+            .offset(offset)
+            .limit(page_size)
+            .options(selectinload(Role.permissions))
+        )
+        rows = result.all()
+        roles = []
+        user_counts = {}
+        for role, count in rows:
+            roles.append(role)
+            user_counts[role.id] = count
+        return roles, total, user_counts
 
     async def update(self, role_id: int, name: str | None = None, description: str | None = None, permission_ids: list[int] | None = None) -> Role | None:
         role = await self.get_by_id(role_id)

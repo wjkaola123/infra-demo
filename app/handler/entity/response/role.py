@@ -21,6 +21,7 @@ class RoleResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     permissions: list["PermissionResponse"] = []
+    assigned_users_count: int = 0
 
     model_config = {"from_attributes": True}
 

@@ -153,16 +153,71 @@ async def test_update_clear_permissions_with_empty_list(db_session):
 async def test_update_without_changing_permissions(db_session):
     """Test that updating without permission_ids preserves existing permissions."""
     repository = RoleRepository(db_session)
-    name = f"preserve_perm_{int(time.time() * 1000)}"
-    role = await repository.create(name=name, description="Test")
+    base_name = f"preserve_perm_{int(time.time() * 1000)}"
+    role = await repository.create(name=base_name, description="Test")
 
     # Add permissions
     await repository.replace_permissions(role.id, [1, 2])
     perms_before = await repository.get_role_permissions(role.id)
     assert len(perms_before) == 2
 
-    # Update only name, keep permissions
-    updated = await repository.update(role.id, name="New Name")
-    assert updated.name == "New Name"
+    # Update only name, keep permissions - use unique name to avoid conflict
+    unique_new_name = f"new_name_{int(time.time() * 1000)}"
+    updated = await repository.update(role.id, name=unique_new_name)
+    assert updated.name == unique_new_name
     perms_after = await repository.get_role_permissions(role.id)
     assert len(perms_after) == 2
+
+
+@pytest.mark.asyncio
+async def test_list_paginated_returns_assigned_users_count(db_session):
+    """Test that list_paginated returns assigned_users_count correctly."""
+    from app.repository.entity.user import User
+    from app.tools.auth.hashing import get_password_hash
+
+    repository = RoleRepository(db_session)
+
+    # Create two test users
+    user1 = User(
+        username=f"user1_{int(time.time() * 1000)}",
+        email=f"user1_{int(time.time() * 1000)}@test.com",
+        password_hash=get_password_hash("password123"),
+    )
+    user2 = User(
+        username=f"user2_{int(time.time() * 1000)}",
+        email=f"user2_{int(time.time() * 1000)}@test.com",
+        password_hash=get_password_hash("password123"),
+    )
+    db_session.add(user1)
+    db_session.add(user2)
+    await db_session.commit()
+    await db_session.refresh(user1)
+    await db_session.refresh(user2)
+
+    # Create two roles
+    role1 = await repository.create(name=f"role1_{int(time.time() * 1000)}", description="Role 1")
+    role2 = await repository.create(name=f"role2_{int(time.time() * 1000)}", description="Role 2")
+
+    # Initially no users assigned - use large page_size to include all roles
+    roles, total, counts = await repository.list_paginated(1, 1000)
+    assert counts.get(role1.id, 0) == 0
+    assert counts.get(role2.id, 0) == 0
+
+    # Assign role1 to user1
+    await repository.assign_role_to_user(user_id=user1.id, role_id=role1.id)
+
+    roles, total, counts = await repository.list_paginated(1, 1000)
+    assert counts.get(role1.id, 0) == 1
+    assert counts.get(role2.id, 0) == 0
+
+    # Assign role1 to user2 as well
+    await repository.assign_role_to_user(user_id=user2.id, role_id=role1.id)
+
+    roles, total, counts = await repository.list_paginated(1, 1000)
+    assert counts.get(role1.id, 0) == 2
+
+    # Clean up
+    await repository.remove_role_from_user(user_id=user1.id, role_id=role1.id)
+    await repository.remove_role_from_user(user_id=user2.id, role_id=role1.id)
+    await repository.delete(role1.id)
+    await repository.delete(role2.id)
