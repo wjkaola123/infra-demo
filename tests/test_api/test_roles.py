@@ -105,7 +105,7 @@ async def test_get_role_by_id(client: AsyncClient, db_session):
     # Create a role first
     create_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"get_test_role_{int(time.time() * 1000)}", "description": "Test role"},
+        json={"name": f"get_test_role_{int(time.time() * 1000)}", "description": "Test role", "permission_ids": []},
         headers={"Authorization": f"Bearer {token}"}
     )
     assert create_response.status_code == 201
@@ -149,7 +149,7 @@ async def test_create_role(client: AsyncClient, db_session):
 
     response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"test_role_{timestamp}", "description": "Test role description"},
+        json={"name": f"test_role_{timestamp}", "description": "Test role description", "permission_ids": []},
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 201
@@ -158,6 +158,7 @@ async def test_create_role(client: AsyncClient, db_session):
     assert data["status"] == 0
     assert data["data"]["name"] == f"test_role_{timestamp}"
     assert data["data"]["description"] == "Test role description"
+    assert "permissions" in data["data"]
     assert "id" in data["data"]
     assert "created_at" in data["data"]
     assert data["data"]["updated_at"] is None
@@ -173,7 +174,7 @@ async def test_create_duplicate_role_name(client: AsyncClient, db_session):
     # Create first role
     await client.post(
         "/api/v1/roles/",
-        json={"name": role_name, "description": "First role"},
+        json={"name": role_name, "description": "First role", "permission_ids": []},
         headers={"Authorization": f"Bearer {token}"}
     )
 
@@ -182,7 +183,7 @@ async def test_create_duplicate_role_name(client: AsyncClient, db_session):
     try:
         response = await client.post(
             "/api/v1/roles/",
-            json={"name": role_name, "description": "Duplicate role"},
+            json={"name": role_name, "description": "Duplicate role", "permission_ids": []},
             headers={"Authorization": f"Bearer {token}"}
         )
         assert response.status_code in [400, 500]
@@ -200,7 +201,7 @@ async def test_update_role(client: AsyncClient, db_session):
     # Create a role first
     create_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"to_update_{timestamp}", "description": "Original description"},
+        json={"name": f"to_update_{timestamp}", "description": "Original description", "permission_ids": []},
         headers={"Authorization": f"Bearer {token}"}
     )
     assert create_response.status_code == 201
@@ -231,7 +232,7 @@ async def test_update_role_with_permissions(client: AsyncClient, db_session):
     # Create a role
     create_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"perm_update_{timestamp}", "description": "Test role"},
+        json={"name": f"perm_update_{timestamp}", "description": "Test role", "permission_ids": []},
         headers={"Authorization": f"Bearer {token}"}
     )
     assert create_response.status_code == 201
@@ -266,7 +267,7 @@ async def test_update_role_clear_permissions(client: AsyncClient, db_session):
     # Create a role with permissions
     create_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"role_to_clear_{timestamp}", "description": "Test"},
+        json={"name": f"role_to_clear_{timestamp}", "description": "Test", "permission_ids": []},
         headers={"Authorization": f"Bearer {token}"}
     )
     role_id = create_response.json()["data"]["id"]
@@ -299,7 +300,7 @@ async def test_update_role_preserve_permissions_when_not_provided(client: AsyncC
     # Create a role
     create_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"preserve_test_{timestamp}", "description": "Test"},
+        json={"name": f"preserve_test_{timestamp}", "description": "Test", "permission_ids": []},
         headers={"Authorization": f"Bearer {token}"}
     )
     role_id = create_response.json()["data"]["id"]
@@ -351,7 +352,7 @@ async def test_delete_role(client: AsyncClient, db_session):
     # Create a role first
     create_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"to_delete_{timestamp}", "description": "Will be deleted"},
+        json={"name": f"to_delete_{timestamp}", "description": "Will be deleted", "permission_ids": []},
         headers={"Authorization": f"Bearer {token}"}
     )
     assert create_response.status_code == 201
@@ -397,7 +398,7 @@ async def test_update_role_permissions(client: AsyncClient, db_session):
     # Create a role
     create_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"perm_test_role_{timestamp}", "description": "Test"},
+        json={"name": f"perm_test_role_{timestamp}", "description": "Test", "permission_ids": []},
         headers={"Authorization": f"Bearer {token}"}
     )
     role_id = create_response.json()["data"]["id"]
@@ -426,7 +427,7 @@ async def test_update_role_permissions_empty(client: AsyncClient, db_session):
     # Create a role
     create_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"clear_perm_role_{timestamp}", "description": "Test"},
+        json={"name": f"clear_perm_role_{timestamp}", "description": "Test", "permission_ids": []},
         headers={"Authorization": f"Bearer {token}"}
     )
     role_id = create_response.json()["data"]["id"]
@@ -468,7 +469,7 @@ async def test_get_user_roles(client: AsyncClient, db_session):
     # Create a role and assign to user
     role_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"user_roles_test_{timestamp}", "description": "Test"},
+        json={"name": f"user_roles_test_{timestamp}", "description": "Test", "permission_ids": []},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     role_id = role_response.json()["data"]["id"]
@@ -510,7 +511,7 @@ async def test_assign_role_to_user(client: AsyncClient, db_session):
     # Create a role
     role_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"assign_role_test_{timestamp}", "description": "Test"},
+        json={"name": f"assign_role_test_{timestamp}", "description": "Test", "permission_ids": []},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     role_id = role_response.json()["data"]["id"]
@@ -536,7 +537,7 @@ async def test_assign_role_to_nonexistent_user(client: AsyncClient, db_session):
     # Create a role
     role_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"assign_role_bad_{timestamp}", "description": "Test"},
+        json={"name": f"assign_role_bad_{timestamp}", "description": "Test", "permission_ids": []},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     role_id = role_response.json()["data"]["id"]
@@ -570,7 +571,7 @@ async def test_remove_role_from_user(client: AsyncClient, db_session):
     # Create a role and assign to user
     role_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"remove_user_role_{timestamp}", "description": "Test"},
+        json={"name": f"remove_user_role_{timestamp}", "description": "Test", "permission_ids": []},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     role_id = role_response.json()["data"]["id"]
@@ -611,7 +612,7 @@ async def test_remove_role_from_user_not_found(client: AsyncClient, db_session):
     # Create a role (but don't assign it)
     role_response = await client.post(
         "/api/v1/roles/",
-        json={"name": f"remove_user_role_nf_{timestamp}", "description": "Test"},
+        json={"name": f"remove_user_role_nf_{timestamp}", "description": "Test", "permission_ids": []},
         headers={"Authorization": f"Bearer {admin_token}"}
     )
     role_id = role_response.json()["data"]["id"]

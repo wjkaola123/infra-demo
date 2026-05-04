@@ -9,8 +9,11 @@ class RoleService:
         self.repo = RoleRepository(db)
         self.redis = redis
 
-    async def create_role(self, name: str, description: str | None = None) -> Role:
-        return await self.repo.create(name, description)
+    async def create_role(self, name: str, description: str | None = None, permission_ids: list[int] | None = None) -> Role:
+        role = await self.repo.create(name, description)
+        if permission_ids:
+            await self.repo.add_permissions(role.id, permission_ids)
+        return role
 
     async def get_role(self, role_id: int) -> Role | None:
         return await self.repo.get_by_id(role_id)

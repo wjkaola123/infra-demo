@@ -5,6 +5,7 @@ from typing import Optional
 class RoleCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=50, description="Role name")
     description: Optional[str] = Field(None, max_length=255, description="Role description")
+    permission_ids: list[int] = Field(..., description="Required permission IDs to assign")
 
 
 class RoleUpdateRequest(BaseModel):

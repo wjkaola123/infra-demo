@@ -83,7 +83,7 @@ async def create_role(
     current_user: User = Depends(require_permissions(["roles:write"])),
 ):
     service = RoleService(db, redis)
-    role = await service.create_role(request.name, request.description)
+    role = await service.create_role(request.name, request.description, request.permission_ids)
     return ApiResponse(data=RoleResponse.model_validate(role))
 
 
