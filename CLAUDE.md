@@ -72,7 +72,7 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 **Roles API:**
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/roles/` | List roles (paginated), includes `assigned_users_count` per role |
+| GET | `/api/v1/roles/` | List roles (paginated, filterable by `name`), includes `assigned_users_count` per role |
 | POST | `/api/v1/roles/` | Create role |
 | GET | `/api/v1/roles/{id}` | Get role by ID |
 | PUT | `/api/v1/roles/{id}` | Update role (name, description, and optionally permission_ids) |
