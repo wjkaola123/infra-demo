@@ -705,3 +705,135 @@ async def test_list_permissions(client: AsyncClient, db_session):
         assert "id" in perm
         assert "name" in perm
         assert "description" in perm
+
+
+@pytest.mark.asyncio
+async def test_list_roles_filter_by_name(client: AsyncClient, db_session):
+    """Test filtering roles by name (case-insensitive contains)."""
+    token = await get_admin_token(client, db_session, "filterbyname")
+    timestamp = int(time.time() * 1000)
+
+    # Create roles with specific names
+    role1_name = f"search_admin_{timestamp}"
+    role2_name = f"search_editor_{timestamp}"
+    role3_name = f"other_{timestamp}"
+
+    for name in [role1_name, role2_name, role3_name]:
+        await client.post(
+            "/api/v1/roles/",
+            json={"name": name, "description": "Test", "permission_ids": []},
+            headers={"Authorization": f"Bearer {token}"}
+        )
+
+    # Filter by "search" - should find 2 roles
+    response = await client.get(
+        f"/api/v1/roles/?name=search",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "success"
+    role_names = [r["name"] for r in data["data"]["items"]]
+    assert role1_name in role_names
+    assert role2_name in role_names
+    assert role3_name not in role_names
+
+
+@pytest.mark.asyncio
+async def test_list_roles_filter_by_name_case_insensitive(client: AsyncClient, db_session):
+    """Test that name filter is case-insensitive."""
+    token = await get_admin_token(client, db_session, "caseinsensitive")
+    timestamp = int(time.time() * 1000)
+
+    role_name = f"CaseTestRole_{timestamp}"
+    await client.post(
+        "/api/v1/roles/",
+        json={"name": role_name, "description": "Test", "permission_ids": []},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    # Search with lowercase should match
+    response = await client.get(
+        f"/api/v1/roles/?name=casetestrole",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert any(r["name"] == role_name for r in data["data"]["items"])
+
+    # Search with uppercase should also match
+    response = await client.get(
+        f"/api/v1/roles/?name=CASETESTROLE",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert any(r["name"] == role_name for r in data["data"]["items"])
+
+
+@pytest.mark.asyncio
+async def test_list_roles_filter_by_name_partial_match(client: AsyncClient, db_session):
+    """Test partial name matching (contains)."""
+    token = await get_admin_token(client, db_session, "partialmatch")
+    timestamp = int(time.time() * 1000)
+
+    role_name = f"prefix_middle_suffix_{timestamp}"
+    await client.post(
+        "/api/v1/roles/",
+        json={"name": role_name, "description": "Test", "permission_ids": []},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    # Search for "middle" should find it
+    response = await client.get(
+        f"/api/v1/roles/?name=middle",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert any(r["name"] == role_name for r in data["data"]["items"])
+
+
+@pytest.mark.asyncio
+async def test_list_roles_filter_by_name_no_results(client: AsyncClient, db_session):
+    """Test filtering by name that matches no roles."""
+    token = await get_admin_token(client, db_session, "noresults")
+
+    response = await client.get(
+        "/api/v1/roles/?name=nonexistentrolename12345",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "success"
+    assert data["data"]["items"] == []
+    assert data["data"]["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_list_roles_filter_with_pagination(client: AsyncClient, db_session):
+    """Test combining name filter with pagination."""
+    token = await get_admin_token(client, db_session, "filterpage")
+    timestamp = int(time.time() * 1000)
+
+    # Create multiple roles with similar names
+    for i in range(5):
+        await client.post(
+            "/api/v1/roles/",
+            json={"name": f"batch_role_{timestamp}_{i}", "description": "Test", "permission_ids": []},
+            headers={"Authorization": f"Bearer {token}"}
+        )
+
+    # Filter and paginate
+    response = await client.get(
+        f"/api/v1/roles/?name=batch_role_{timestamp}&page=1&page_size=2",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "success"
+    assert len(data["data"]["items"]) == 2
+    assert data["data"]["total"] == 5
+    assert data["data"]["page"] == 1
+    assert data["data"]["page_size"] == 2
+    assert data["data"]["total_pages"] == 3

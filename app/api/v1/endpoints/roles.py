@@ -27,12 +27,13 @@ router = APIRouter()
 async def list_roles(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(10, ge=1, le=100, description="Items per page"),
+    name: str | None = Query(None, description="Filter by role name (case-insensitive contains)"),
     db: AsyncSession = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
     current_user: User = Depends(require_permissions(["roles:read"])),
 ):
     service = RoleService(db, redis)
-    roles, total, user_counts = await service.list_roles_paginated(page, page_size)
+    roles, total, user_counts = await service.list_roles_paginated(page, page_size, name)
     total_pages = (total + page_size - 1) // page_size if total > 0 else 0
     items = []
     for r in roles:

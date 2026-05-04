@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 from app.repository.entity.role import Role, user_roles, role_permissions, Permission
 
@@ -34,9 +34,17 @@ class RoleRepository:
         )
         return list(result.scalars().all())
 
-    async def list_paginated(self, page: int, page_size: int) -> tuple[list[Role], int, dict[int, int]]:
+    async def list_paginated(self, page: int, page_size: int, name: str | None = None) -> tuple[list[Role], int, dict[int, int]]:
         offset = (page - 1) * page_size
-        count_result = await self.session.execute(select(func.count(Role.id)))
+        base_query = select(Role)
+        count_query = select(func.count(Role.id))
+
+        if name:
+            name_filter = or_(Role.name.ilike(f"%{name}%"))
+            base_query = base_query.where(name_filter)
+            count_query = count_query.where(name_filter)
+
+        count_result = await self.session.execute(count_query)
         total = count_result.scalar() or 0
 
         user_count_subquery = (
@@ -44,13 +52,16 @@ class RoleRepository:
             .group_by(user_roles.c.role_id)
             .subquery()
         )
-        result = await self.session.execute(
+        query = (
             select(Role, func.coalesce(user_count_subquery.c.user_count, 0).label('assigned_users_count'))
             .outerjoin(user_count_subquery, Role.id == user_count_subquery.c.role_id)
             .offset(offset)
             .limit(page_size)
             .options(selectinload(Role.permissions))
         )
+        if name:
+            query = query.where(or_(Role.name.ilike(f"%{name}%")))
+        result = await self.session.execute(query)
         rows = result.all()
         roles = []
         user_counts = {}
