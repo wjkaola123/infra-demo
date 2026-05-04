@@ -43,6 +43,17 @@ async def list_roles(
     )
 
 
+@router.get("/permissions", response_model=ApiResponse[list[PermissionResponse]])
+async def list_permissions(
+    db: AsyncSession = Depends(get_db),
+    redis: Redis | None = Depends(get_redis),
+    current_user: User = Depends(require_permissions(["roles:read"])),
+):
+    service = RoleService(db, redis)
+    permissions = await service.list_permissions()
+    return ApiResponse(data=[PermissionResponse.model_validate(p) for p in permissions])
+
+
 @router.get("/{role_id}", response_model=ApiResponse[RoleResponse])
 async def get_role(
     role_id: int,
@@ -97,6 +108,17 @@ async def delete_role(
     if not success:
         raise HTTPException(status_code=404, detail="Role not found")
     return ApiResponse(data={"deleted": True})
+
+
+@router.get("/permissions", response_model=ApiResponse[list[PermissionResponse]])
+async def list_permissions(
+    db: AsyncSession = Depends(get_db),
+    redis: Redis | None = Depends(get_redis),
+    current_user: User = Depends(require_permissions(["roles:read"])),
+):
+    service = RoleService(db, redis)
+    permissions = await service.list_permissions()
+    return ApiResponse(data=[PermissionResponse.model_validate(p) for p in permissions])
 
 
 @router.put("/{role_id}/permissions", response_model=ApiResponse[list[PermissionResponse]])

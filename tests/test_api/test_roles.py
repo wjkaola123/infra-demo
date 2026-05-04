@@ -572,3 +572,24 @@ async def test_roles_requires_admin_permissions(client: AsyncClient):
     )
     # Editor role doesn't have roles:read permission
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_list_permissions(client: AsyncClient, db_session):
+    """Test listing all permissions."""
+    token = await get_admin_token(client, db_session, "listperms")
+
+    response = await client.get(
+        "/api/v1/roles/permissions",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "success"
+    assert isinstance(data["data"], list)
+    assert len(data["data"]) >= 1
+    # Verify permission structure
+    for perm in data["data"]:
+        assert "id" in perm
+        assert "name" in perm
+        assert "description" in perm

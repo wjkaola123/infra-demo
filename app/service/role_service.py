@@ -48,5 +48,8 @@ class RoleService:
     async def remove_role_from_user(self, user_id: int, role_id: int) -> bool:
         return await self.repo.remove_role_from_user(user_id, role_id)
 
+    async def list_permissions(self) -> list[Permission]:
+        return await self.repo.list_all_permissions()
+
     async def get_user_permissions(self, user_id: int) -> list[Permission]:
         return await self.repo.get_user_permissions(user_id)

@@ -188,6 +188,10 @@ class RoleRepository:
         await self.session.commit()
         return True
 
+    async def list_all_permissions(self) -> list[Permission]:
+        result = await self.session.execute(select(Permission))
+        return list(result.scalars().all())
+
     async def get_user_permissions(self, user_id: int) -> list[Permission]:
         result = await self.session.execute(
             select(Permission)
