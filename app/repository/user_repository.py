@@ -17,7 +17,7 @@ class UserRepository:
 
     async def find_by_id(self, user_id: int) -> User | None:
         result = await self.session.execute(
-            select(User).where(User.id == user_id)
+            select(User).where(User.id == user_id).options(selectinload(User.roles))
         )
         return result.scalar_one_or_none()
 
