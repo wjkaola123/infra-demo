@@ -26,7 +26,7 @@ router = APIRouter()
 @router.get("/", response_model=ApiResponse[PaginatedRoleResponse])
 async def list_roles(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(10, ge=1, le=100, description="Items per page"),
+    page_size: int = Query(10, ge=1, le=10000, description="Items per page"),
     name: str | None = Query(None, description="Filter by role name (case-insensitive contains)"),
     db: AsyncSession = Depends(get_db),
     redis: Redis | None = Depends(get_redis),
