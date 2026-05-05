@@ -51,6 +51,7 @@ async def test_create_user_with_roles(client: AsyncClient, db_session):
     user_data = {
         "username": f"createwithroles_{timestamp}",
         "email": f"createwithroles_{timestamp}@test.com",
+        "password": "password123",
         "role_ids": [role1_id, role2_id]
     }
     response = await client.post(
@@ -81,7 +82,8 @@ async def test_create_user(client: AsyncClient):
     timestamp = int(time.time() * 1000)
     user_data = {
         "username": f"testuser_{timestamp}",
-        "email": f"testuser_{timestamp}@test.com"
+        "email": f"testuser_{timestamp}@test.com",
+        "password": "password123"
     }
     response = await client.post(
         "/api/v1/users/",
@@ -106,7 +108,8 @@ async def test_get_user(client: AsyncClient):
     timestamp = int(time.time() * 1000)
     user_data = {
         "username": f"getuser_{timestamp}",
-        "email": f"getuser_{timestamp}@test.com"
+        "email": f"getuser_{timestamp}@test.com",
+        "password": "password123"
     }
     create_response = await client.post(
         "/api/v1/users/",
@@ -137,7 +140,8 @@ async def test_list_users(client: AsyncClient):
     timestamp = int(time.time() * 1000)
     user_data = {
         "username": f"listuser_{timestamp}",
-        "email": f"listuser_{timestamp}@test.com"
+        "email": f"listuser_{timestamp}@test.com",
+        "password": "password123"
     }
     create_response = await client.post(
         "/api/v1/users/",
@@ -192,7 +196,8 @@ async def test_list_users_username_filter(client: AsyncClient):
     target_username = f"searchable_{timestamp}"
     user_data = {
         "username": target_username,
-        "email": f"searchable_{timestamp}@test.com"
+        "email": f"searchable_{timestamp}@test.com",
+        "password": "password123"
     }
     create_response = await client.post(
         "/api/v1/users/",
@@ -229,7 +234,8 @@ async def test_update_user(client: AsyncClient):
     timestamp = int(time.time() * 1000)
     user_data = {
         "username": f"updateuser_{timestamp}",
-        "email": f"updateuser_{timestamp}@test.com"
+        "email": f"updateuser_{timestamp}@test.com",
+        "password": "password123"
     }
     create_response = await client.post(
         "/api/v1/users/",
@@ -265,7 +271,8 @@ async def test_update_user_assign_roles(client: AsyncClient, db_session):
     timestamp = int(time.time() * 1000)
     user_data = {
         "username": f"roleassign_{timestamp}",
-        "email": f"roleassign_{timestamp}@test.com"
+        "email": f"roleassign_{timestamp}@test.com",
+        "password": "password123"
     }
     create_response = await client.post(
         "/api/v1/users/",
@@ -316,7 +323,8 @@ async def test_update_user_clear_roles(client: AsyncClient, db_session):
     timestamp = int(time.time() * 1000)
     user_data = {
         "username": f"roleclear_{timestamp}",
-        "email": f"roleclear_{timestamp}@test.com"
+        "email": f"roleclear_{timestamp}@test.com",
+        "password": "password123"
     }
     create_response = await client.post(
         "/api/v1/users/",
@@ -370,7 +378,8 @@ async def test_update_user_invalid_role_ids(client: AsyncClient, db_session):
     timestamp = int(time.time() * 1000)
     user_data = {
         "username": f"invalidrole_{timestamp}",
-        "email": f"invalidrole_{timestamp}@test.com"
+        "email": f"invalidrole_{timestamp}@test.com",
+        "password": "password123"
     }
     create_response = await client.post(
         "/api/v1/users/",
@@ -398,7 +407,8 @@ async def test_update_user_preserve_roles_without_role_ids_field(client: AsyncCl
     timestamp = int(time.time() * 1000)
     user_data = {
         "username": f"preserveroles_{timestamp}",
-        "email": f"preserveroles_{timestamp}@test.com"
+        "email": f"preserveroles_{timestamp}@test.com",
+        "password": "password123"
     }
     create_response = await client.post(
         "/api/v1/users/",
@@ -445,7 +455,8 @@ async def test_delete_user_no_permission(client: AsyncClient):
     timestamp = int(time.time() * 1000)
     user_data = {
         "username": f"deleteuser_{timestamp}",
-        "email": f"deleteuser_{timestamp}@test.com"
+        "email": f"deleteuser_{timestamp}@test.com",
+        "password": "password123"
     }
     create_response = await client.post(
         "/api/v1/users/",

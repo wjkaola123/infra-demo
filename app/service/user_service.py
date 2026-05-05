@@ -1,3 +1,4 @@
+from app.tools.auth.hashing import get_password_hash
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repository.user_repository import UserRepository
@@ -21,6 +22,7 @@ class UserService:
             id=0,
             username=user_data.username,
             email=user_data.email,
+            password_hash=get_password_hash(user_data.password),
             is_active=True,
         )
         user = await self.repo.create(user_entity)

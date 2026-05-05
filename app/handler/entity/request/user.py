@@ -4,6 +4,7 @@ from pydantic import BaseModel, EmailStr, Field
 class UserCreateRequest(BaseModel):
     username: str
     email: EmailStr
+    password: str
     role_ids: list[int] | None = None
 
 
