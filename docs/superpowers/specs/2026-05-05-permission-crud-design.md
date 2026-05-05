@@ -12,7 +12,6 @@ Current RBAC system has permissions but no direct CRUD for them. Admins cannot c
 | GET | `/api/v1/permissions` | List all (paginated, filter by name) | `permissions:read` |
 | GET | `/api/v1/permissions/{id}` | Get one by ID | `permissions:read` |
 | PUT | `/api/v1/permissions/{id}` | Update name/description | `permissions:write` |
-| DELETE | `/api/v1/permissions/{id}` | Delete (blocked if in use) | `permissions:delete` |
 
 ## Schema
 
