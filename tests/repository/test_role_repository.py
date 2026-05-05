@@ -199,7 +199,7 @@ async def test_list_paginated_returns_assigned_users_count(db_session):
     role2 = await repository.create(name=f"role2_{int(time.time() * 1000)}", description="Role 2")
 
     # Initially no users assigned - use large page_size to include all roles
-    roles, total, counts = await repository.list_paginated(1, 1000)
+    roles, total, counts = await repository.list_paginated(1, 2000)
     assert counts.get(role1.id, 0) == 0
     assert counts.get(role2.id, 0) == 0
 
