@@ -25,6 +25,7 @@ class UserRepository:
         user = User(
             username=user_entity.username,
             email=user_entity.email,
+            password_hash=user_entity.password_hash,
             is_active=user_entity.is_active,
         )
         self.session.add(user)

@@ -102,6 +102,40 @@ async def test_create_user(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_create_user_can_login(client: AsyncClient):
+    """Test that a user created via POST /api/v1/users/ can successfully login."""
+    token = await get_access_token(client, "logintest")
+    timestamp = int(time.time() * 1000)
+    user_data = {
+        "username": f"logintest_{timestamp}",
+        "email": f"logintest_{timestamp}@test.com",
+        "password": "TestPass123"
+    }
+    # Create user via users endpoint
+    create_response = await client.post(
+        "/api/v1/users/",
+        json=user_data,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert create_response.status_code == 201
+    created_user = create_response.json()["data"]
+    assert created_user["username"] == user_data["username"]
+
+    # Login with the created user's credentials
+    login_response = await client.post(
+        "/api/v1/auth/login",
+        json={"username": user_data["username"], "password": user_data["password"]}
+    )
+    assert login_response.status_code == 200
+    login_data = login_response.json()
+    assert login_data["message"] == "success"
+    assert login_data["status"] == 0
+    assert "access_token" in login_data["data"]
+    assert "refresh_token" in login_data["data"]
+    assert login_data["data"]["username"] == user_data["username"]
+
+
+@pytest.mark.asyncio
 async def test_get_user(client: AsyncClient):
     """Test getting a single user."""
     token = await get_access_token(client, "getuser")
