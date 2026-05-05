@@ -752,18 +752,18 @@ async def test_list_roles_filter_by_name_case_insensitive(client: AsyncClient, d
         headers={"Authorization": f"Bearer {token}"}
     )
 
-    # Search with lowercase should match
+    # Search with unique name should match
     response = await client.get(
-        f"/api/v1/roles/?name=casetestrole",
+        f"/api/v1/roles/?name=CaseTestRole_{timestamp}",
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
     data = response.json()
     assert any(r["name"] == role_name for r in data["data"]["items"])
 
-    # Search with uppercase should also match
+    # Search with lowercase should also match (case-insensitive test)
     response = await client.get(
-        f"/api/v1/roles/?name=CASETESTROLE",
+        f"/api/v1/roles/?name=casetestrole_{timestamp}",
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
@@ -784,9 +784,9 @@ async def test_list_roles_filter_by_name_partial_match(client: AsyncClient, db_s
         headers={"Authorization": f"Bearer {token}"}
     )
 
-    # Search for "middle" should find it
+    # Search for unique timestamp in name should find it
     response = await client.get(
-        f"/api/v1/roles/?name=middle",
+        f"/api/v1/roles/?name={timestamp}",
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
