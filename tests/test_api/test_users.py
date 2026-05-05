@@ -297,6 +297,55 @@ async def test_update_user(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_update_user_password(client: AsyncClient):
+    """Test that updating user password allows login with new password."""
+    token = await get_access_token(client, "pwupdate")
+    timestamp = int(time.time() * 1000)
+    user_data = {
+        "username": f"pwupdate_{timestamp}",
+        "email": f"pwupdate_{timestamp}@test.com",
+        "password": "OldPass123"
+    }
+    create_response = await client.post(
+        "/api/v1/users/",
+        json=user_data,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert create_response.status_code == 201
+
+    # Login with old password should work
+    login_old = await client.post(
+        "/api/v1/auth/login",
+        json={"username": user_data["username"], "password": user_data["password"]}
+    )
+    assert login_old.status_code == 200
+
+    # Update password
+    new_password = "NewPass456"
+    update_response = await client.put(
+        f"/api/v1/users/{create_response.json()['data']['id']}",
+        json={"password": new_password},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert update_response.status_code == 200
+
+    # Login with old password should fail
+    login_old_fail = await client.post(
+        "/api/v1/auth/login",
+        json={"username": user_data["username"], "password": user_data["password"]}
+    )
+    assert login_old_fail.status_code == 401
+
+    # Login with new password should succeed
+    login_new = await client.post(
+        "/api/v1/auth/login",
+        json={"username": user_data["username"], "password": new_password}
+    )
+    assert login_new.status_code == 200
+    assert "access_token" in login_new.json()["data"]
+
+
+@pytest.mark.asyncio
 async def test_update_user_assign_roles(client: AsyncClient, db_session):
     """Test assigning roles to a user via PUT /users/{id}."""
     from sqlalchemy import text

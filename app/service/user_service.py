@@ -67,6 +67,9 @@ class UserService:
         if user_data.email is not None:
             user.email = user_data.email
 
+        if user_data.password is not None:
+            user.password_hash = get_password_hash(user_data.password)
+
         if user_data.is_active is not None:
             user.is_active = user_data.is_active
 

@@ -11,6 +11,7 @@ class UserCreateRequest(BaseModel):
 class UserUpdateRequest(BaseModel):
     username: str | None = None
     email: EmailStr | None = None
+    password: str | None = None
     is_active: bool | None = None
     role_ids: list[int] | None = None
 
