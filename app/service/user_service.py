@@ -2,6 +2,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repository.user_repository import UserRepository
 from app.repository.role_repository import RoleRepository
+from app.entity.user import UserEntity
 from app.handler.entity.request.user import UserCreateRequest, UserUpdateRequest
 from app.handler.entity.response.user import UserResponse, PaginatedUserResponse
 
@@ -12,17 +13,25 @@ class UserService:
         self.redis = redis
 
     async def create_user(self, user_data: UserCreateRequest) -> UserResponse:
-        cached = await self.redis.get(f"user:{user_data.username}")
-        if cached:
-            raise ValueError("Username already exists (cached)")
-
         existing = await self.repo.find_by_username(user_data.username)
         if existing:
             raise ValueError("Username already exists")
 
-        user = await self.repo.create(user_data)
-        await self.redis.set(f"user:{user.username}", user.email, ex=3600)
+        user_entity = UserEntity(
+            id=0,
+            username=user_data.username,
+            email=user_data.email,
+            is_active=True,
+        )
+        user = await self.repo.create(user_entity)
 
+        if user_data.role_ids:
+            role_repo = RoleRepository(self.repo.session)
+            success = await role_repo.set_user_roles(user.id, user_data.role_ids)
+            if not success:
+                raise ValueError("User or roles not found")
+
+        await self.repo.session.refresh(user)
         return UserResponse.model_validate(user)
 
     async def get_user(self, user_id: int) -> UserResponse | None:

@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.repository.entity.user import User
-from app.handler.entity.request.user import UserCreateRequest
+from app.entity.user import UserEntity
 
 
 class UserRepository:
@@ -21,8 +21,12 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
-    async def create(self, user_data: UserCreateRequest) -> User:
-        user = User(**user_data.model_dump())
+    async def create(self, user_entity: UserEntity) -> User:
+        user = User(
+            username=user_entity.username,
+            email=user_entity.email,
+            is_active=user_entity.is_active,
+        )
         self.session.add(user)
         await self.session.commit()
         await self.session.refresh(user)

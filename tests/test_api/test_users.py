@@ -26,6 +26,55 @@ async def test_health_check(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_create_user_with_roles(client: AsyncClient, db_session):
+    """Test creating a user with roles assigned on creation."""
+    from sqlalchemy import text
+    from tests.test_api.test_roles import get_admin_token
+    token = await get_admin_token(client, db_session, "createwithrole")
+    timestamp = int(time.time() * 1000)
+
+    # Create two roles
+    role1_response = await client.post(
+        "/api/v1/roles/",
+        json={"name": f"create_role_a_{timestamp}", "description": "Test A", "permission_ids": []},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    role2_response = await client.post(
+        "/api/v1/roles/",
+        json={"name": f"create_role_b_{timestamp}", "description": "Test B", "permission_ids": []},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    role1_id = role1_response.json()["data"]["id"]
+    role2_id = role2_response.json()["data"]["id"]
+
+    # Create user with role_ids
+    user_data = {
+        "username": f"createwithroles_{timestamp}",
+        "email": f"createwithroles_{timestamp}@test.com",
+        "role_ids": [role1_id, role2_id]
+    }
+    response = await client.post(
+        "/api/v1/users/",
+        json=user_data,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["message"] == "success"
+    assert data["data"]["username"] == user_data["username"]
+    assert len(data["data"]["roles"]) == 2
+
+    # Verify roles were assigned via direct DB query
+    result = await db_session.execute(
+        text("SELECT role_id FROM user_roles WHERE user_id = :user_id ORDER BY role_id"),
+        {"user_id": data["data"]["id"]}
+    )
+    assigned_role_ids = [row[0] for row in result.all()]
+    assert role1_id in assigned_role_ids
+    assert role2_id in assigned_role_ids
+
+
+@pytest.mark.asyncio
 async def test_create_user(client: AsyncClient):
     """Test creating a new user."""
     token = await get_access_token(client, "testuser")
