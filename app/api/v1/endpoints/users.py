@@ -17,12 +17,13 @@ router = APIRouter()
 async def list_users(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(10, ge=1, le=100, description="Items per page"),
+    username: str | None = Query(None, description="Username fuzzy search filter"),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: User = Depends(require_permissions("users:read")),
 ):
     service = UserService(db, redis)
-    result = await service.list_users_paginated(page, page_size)
+    result = await service.list_users_paginated(page, page_size, username)
     return ApiResponse(message="success", status=0, data=result)
 
 

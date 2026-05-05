@@ -36,13 +36,19 @@ class UserRepository:
         result = await self.session.execute(select(User))
         return list(result.scalars().all())
 
-    async def find_paginated(self, page: int, page_size: int) -> tuple[list[User], int]:
+    async def find_paginated(self, page: int, page_size: int, username: str | None = None) -> tuple[list[User], int]:
         from sqlalchemy import func
         offset = (page - 1) * page_size
-        count_result = await self.session.execute(select(func.count(User.id)))
+        count_query = select(func.count(User.id))
+        if username:
+            count_query = count_query.where(User.username.ilike(f"%{username}%"))
+        count_result = await self.session.execute(count_query)
         total = count_result.scalar() or 0
+        query = select(User)
+        if username:
+            query = query.where(User.username.ilike(f"%{username}%"))
         result = await self.session.execute(
-            select(User).offset(offset).limit(page_size).options(selectinload(User.roles))
+            query.offset(offset).limit(page_size).options(selectinload(User.roles))
         )
         return list(result.scalars().all()), total
 

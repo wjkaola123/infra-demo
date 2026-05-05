@@ -183,6 +183,46 @@ async def test_list_users(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_list_users_username_filter(client: AsyncClient):
+    """Test listing users with username fuzzy search filter."""
+    token = await get_access_token(client, "searchuser")
+    timestamp = int(time.time() * 1000)
+
+    # Create users with different usernames
+    target_username = f"searchable_{timestamp}"
+    user_data = {
+        "username": target_username,
+        "email": f"searchable_{timestamp}@test.com"
+    }
+    create_response = await client.post(
+        "/api/v1/users/",
+        json=user_data,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert create_response.status_code == 201
+
+    # Search by partial match (prefix)
+    search_response = await client.get(
+        f"/api/v1/users/?username={target_username[:8]}",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert search_response.status_code == 200
+    search_data = search_response.json()
+    assert search_data["message"] == "success"
+    usernames = [u["username"] for u in search_data["data"]["items"]]
+    assert target_username in usernames
+
+    # Search non-existent username returns empty
+    not_found_response = await client.get(
+        "/api/v1/users/?username=nonexistentuser99999",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert not_found_response.status_code == 200
+    not_found_data = not_found_response.json()
+    assert not_found_data["data"]["items"] == []
+
+
+@pytest.mark.asyncio
 async def test_update_user(client: AsyncClient):
     """Test updating a user."""
     token = await get_access_token(client, "updateuser")

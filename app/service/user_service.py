@@ -40,8 +40,8 @@ class UserService:
             return None
         return UserResponse.model_validate(user)
 
-    async def list_users_paginated(self, page: int = 1, page_size: int = 10) -> PaginatedUserResponse:
-        users, total = await self.repo.find_paginated(page, page_size)
+    async def list_users_paginated(self, page: int = 1, page_size: int = 10, username: str | None = None) -> PaginatedUserResponse:
+        users, total = await self.repo.find_paginated(page, page_size, username)
         total_pages = (total + page_size - 1) // page_size if total > 0 else 0
         return PaginatedUserResponse(
             items=[UserResponse.model_validate(u) for u in users],
