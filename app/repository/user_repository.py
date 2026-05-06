@@ -34,7 +34,7 @@ class UserRepository:
         return user
 
     async def find_all(self) -> list[User]:
-        result = await self.session.execute(select(User))
+        result = await self.session.execute(select(User).order_by(User.id))
         return list(result.scalars().all())
 
     async def find_paginated(self, page: int, page_size: int, username: str | None = None) -> tuple[list[User], int]:
@@ -49,7 +49,7 @@ class UserRepository:
         if username:
             query = query.where(User.username.ilike(f"%{username}%"))
         result = await self.session.execute(
-            query.offset(offset).limit(page_size).options(selectinload(User.roles))
+            query.order_by(User.id).offset(offset).limit(page_size).options(selectinload(User.roles))
         )
         return list(result.scalars().all()), total
 

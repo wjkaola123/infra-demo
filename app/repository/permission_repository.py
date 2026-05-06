@@ -38,7 +38,7 @@ class PermissionRepository:
         total = count_result.scalar() or 0
 
         result = await self.session.execute(
-            base_query.offset(offset).limit(page_size)
+            base_query.order_by(Permission.id).offset(offset).limit(page_size)
         )
         return list(result.scalars().all()), total
 

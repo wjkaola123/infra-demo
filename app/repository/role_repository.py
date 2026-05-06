@@ -55,6 +55,7 @@ class RoleRepository:
         query = (
             select(Role, func.coalesce(user_count_subquery.c.user_count, 0).label('assigned_users_count'))
             .outerjoin(user_count_subquery, Role.id == user_count_subquery.c.role_id)
+            .order_by(Role.id)
             .offset(offset)
             .limit(page_size)
             .options(selectinload(Role.permissions))
@@ -249,7 +250,7 @@ class RoleRepository:
         return True
 
     async def list_all_permissions(self) -> list[Permission]:
-        result = await self.session.execute(select(Permission))
+        result = await self.session.execute(select(Permission).order_by(Permission.id))
         return list(result.scalars().all())
 
     async def get_user_permissions(self, user_id: int) -> list[Permission]:
