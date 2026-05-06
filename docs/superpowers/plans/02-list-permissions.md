@@ -4,6 +4,14 @@
 
 Adding `GET /api/v1/permissions` endpoint with pagination and name filter. Reuses infrastructure created in create-permission plan.
 
+## Prerequisite
+
+**Run migration `004` first** — `permissions:read` must exist and be assigned to admin role before implementing this endpoint.
+
+```bash
+docker-compose exec api python -m alembic upgrade head
+```
+
 ## File Changes
 
 ### New/Modified Files
@@ -76,6 +84,7 @@ async def list_permissions(
 
 ## Verification
 
+- Run migration first: `docker-compose exec api python -m alembic upgrade head`
 - Run: `docker-compose exec api python -m pytest tests/ -v`
 - Test: `GET /api/v1/permissions?page=1&page_size=10&name=articles`
 - Empty filter: `GET /api/v1/permissions`

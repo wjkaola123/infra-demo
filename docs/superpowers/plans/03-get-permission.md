@@ -4,6 +4,14 @@
 
 Adding `GET /api/v1/permissions/{id}` endpoint to fetch a single permission by ID.
 
+## Prerequisite
+
+**Run migration `004` first** — `permissions:read` must exist and be assigned to admin role before implementing this endpoint.
+
+```bash
+docker-compose exec api python -m alembic upgrade head
+```
+
 ## File Changes
 
 ### Modify Files
@@ -41,6 +49,7 @@ async def get_permission(
 
 ## Verification
 
+- Run migration first: `docker-compose exec api python -m alembic upgrade head`
 - Run: `docker-compose exec api python -m pytest tests/ -v`
 - Test: `GET /api/v1/permissions/1` → returns permission
 - Test: `GET /api/v1/permissions/9999` → returns 404 error via ValueError

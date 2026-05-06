@@ -4,14 +4,7 @@
 
 Current RBAC system has permissions but no direct CRUD for them. Admins cannot create/update/delete permissions — only assign existing ones to roles. This phase adds permission maintenance capabilities.
 
-## API Endpoints
-
-| Method | Endpoint | Description | Required Permission |
-|--------|----------|-------------|---------------------|
-| POST | `/api/v1/permissions` | Create permission | `permissions:write` |
-| GET | `/api/v1/permissions` | List all (paginated, filter by name) | `permissions:read` |
-| GET | `/api/v1/permissions/{id}` | Get one by ID | `permissions:read` |
-| PUT | `/api/v1/permissions/{id}` | Update name/description | `permissions:write` |
+| DELETE | `/api/v1/permissions/{id}` | Delete permission | `permissions:delete` |
 
 ## Schema
 
@@ -76,7 +69,8 @@ updated_at: datetime
 3. Create PermissionService (business logic)
 4. Create permissions endpoint file
 5. Wire up router
-6. Write migration for new permission seed data
+6. Add delete permission
+7. Write migration for new permission seed data
 
 ## Verification
 

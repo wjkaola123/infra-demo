@@ -4,6 +4,14 @@
 
 Adding `PUT /api/v1/permissions/{id}` endpoint to update name and/or description of a permission.
 
+## Prerequisite
+
+**Run migration `004` first** — `permissions:write` must exist and be assigned to admin role before implementing this endpoint.
+
+```bash
+docker-compose exec api python -m alembic upgrade head
+```
+
 ## File Changes
 
 ### Modify Files
@@ -66,6 +74,7 @@ async def update_permission(
 
 ## Verification
 
+- Run migration first: `docker-compose exec api python -m alembic upgrade head`
 - Run: `docker-compose exec api python -m pytest tests/ -v`
 - Test: `PUT /api/v1/permissions/1` with `{"name": "articles:write", "description": "Updated desc"}`
 - Duplicate name: should return 400 error
