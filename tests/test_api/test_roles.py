@@ -665,9 +665,9 @@ async def test_roles_requires_authentication(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_roles_requires_admin_permissions(client: AsyncClient):
+async def test_roles_requires_admin_permissions(client: AsyncClient, db_session):
     """Test that roles endpoints require roles:read permission."""
-    # Create a user without admin role (just registered, gets editor role)
+    from sqlalchemy import text
     timestamp = int(time.time() * 1000)
     user_data = {
         "username": f"noroles_{timestamp}",
@@ -676,13 +676,37 @@ async def test_roles_requires_admin_permissions(client: AsyncClient):
     }
     register_response = await client.post("/api/v1/auth/register", json=user_data)
     token = register_response.json()["data"]["access_token"]
+    user_name = register_response.json()["data"]["username"]
 
-    # Try to list roles (requires roles:read)
+    # Get user id and assign viewer role (only has users:read, not roles:read)
+    result = await db_session.execute(
+        text("SELECT id FROM users WHERE username = :username"),
+        {"username": user_name}
+    )
+    user_id = result.scalar_one()
+
+    # Get viewer role id
+    result = await db_session.execute(
+        text("SELECT id FROM roles WHERE name = 'viewer'")
+    )
+    viewer_id = result.scalar_one()
+
+    # Replace editor role with viewer role for this user
+    await db_session.execute(
+        text("DELETE FROM user_roles WHERE user_id = :user_id"),
+        {"user_id": user_id}
+    )
+    await db_session.execute(
+        text("INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)"),
+        {"user_id": user_id, "role_id": viewer_id}
+    )
+    await db_session.commit()
+
+    # Try to list roles (requires roles:read) - viewer should get 403
     response = await client.get(
         "/api/v1/roles/",
         headers={"Authorization": f"Bearer {token}"}
     )
-    # Editor role doesn't have roles:read permission
     assert response.status_code == 403
 
 
