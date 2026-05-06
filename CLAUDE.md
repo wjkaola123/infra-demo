@@ -85,6 +85,14 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 | DELETE | `/api/v1/roles/users/{user_id}/roles/{role_id}` | Remove role from user |
 | GET | `/api/v1/roles/users/{user_id}/permissions` | Get user's permissions |
 
+**Permissions API:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/permissions/` | List permissions (paginated, filterable by `name`) |
+| POST | `/api/v1/permissions/` | Create permission |
+| GET | `/api/v1/permissions/{id}` | Get permission by ID |
+| PUT | `/api/v1/permissions/{id}` | Update permission |
+
 
 ### Dependencies
 - `app/dependencies.py` - `get_db()` for AsyncSession, `get_redis()` for Redis client, `get_current_user()` for auth, `require_permissions()` for RBAC
@@ -122,62 +130,60 @@ All API responses use `ApiResponse[T]` from `app/schemas/common.py`:
 app/
 ├── repository/                    # Data access layer
 │   ├── entity/                    # Database entities (SQLAlchemy ORM Model)
-│   │   ├── base.py               # Base + TimestampMixin
-│   │   └── user.py               # User ORM Model
-│   └── user_repository.py        # UserRepository data access class
+│   │   ├── base.py              # Base + TimestampMixin
+│   │   ├── user.py              # User ORM Model
+│   │   └── role.py              # Role ORM Model
+│   ├── user_repository.py
+│   ├── role_repository.py
+│   └── permission_repository.py
 ├── entity/                        # Business entities (Domain Entity)
-│   └── user.py                   # UserEntity
-├── handler/                       # Request handling layer
-│   └── entity/
-│       ├── request/              # Request DTOs
-│       │   ├── user.py          # UserCreateRequest, UserUpdateRequest
-│       │   └── auth.py          # LoginRequest, RegisterRequest, RefreshRequest, LogoutRequest
-│       └── response/
-│           ├── user.py          # UserResponse
-│           └── auth.py          # TokenResponse
-├── service/                       # Business service layer
-│   ├── user_service.py          # UserService
-│   ├── auth_service.py          # AuthService (register/login/refresh/logout)
-│   └── role_service.py          # RoleService (CRUD + RBAC)
-├── api/                          # API routing layer
-│   └── v1/endpoints/
-│       ├── users.py             # User CRUD endpoints
-│       ├── auth.py              # Auth endpoints (register/login/refresh/logout)
-│       └── roles.py            # Roles/RBAC endpoints
-├── tools/auth/                   # Auth utilities
-│   ├── jwt.py                   # JWTHandler
-│   └── hashing.py               # Password hashing
-├── schemas/                      # Pydantic schemas
-│   └── common.py                # ApiResponse
-└── tasks/                        # Celery tasks
-    └── example_tasks.py
+│   ├── user.py
+│   └── permission.py
+├── handler/entity/
+│   ├── request/                  # Request DTOs
+│   │   ├── user.py              # UserCreateRequest, UserUpdateRequest
+│   │   ├── auth.py              # LoginRequest, RegisterRequest, RefreshRequest, LogoutRequest
+│   │   ├── role.py
+│   │   └── permission.py
+│   └── response/
+│       ├── user.py
+│       ├── auth.py
+│       ├── role.py
+│       └── permission.py
+├── service/
+│   ├── user_service.py
+│   ├── auth_service.py
+│   ├── role_service.py
+│   └── permission_service.py
+├── api/v1/endpoints/
+│   ├── users.py
+│   ├── auth.py
+│   ├── roles.py
+│   └── permissions.py
+└── tools/auth/
+    ├── jwt.py
+    └── hashing.py
 ```
 
 **Layer responsibilities:**
-- `repository/entity` - SQLAlchemy ORM models, corresponding to database table structures
-- `repository` - Repository pattern, encapsulates database access logic
-- `entity` - Business entities, business objects independent of the database
-- `handler/entity/request` - External request DTOs, used for API input validation
-- `handler/entity/response` - External response DTOs, used for API output formatting
-- `service` - Business logic layer, orchestrates business operations
-- `tools/auth` - Authentication utility functions
+- `repository/entity` - SQLAlchemy ORM models (database table structures)
+- `repository` - Repository pattern (data access logic)
+- `entity` - Domain entities (business objects, DB-independent)
+- `handler/entity/request` - External request DTOs (API input validation)
+- `handler/entity/response` - External response DTOs (API output formatting)
+- `service` - Business logic layer
+- `tools/auth` - Authentication utilities
 
 ## File Structure
 
 ```
 app/
 ├── main.py              # FastAPI app + lifespan
-├── config.py            # Settings
-├── dependencies.py      # DI (get_db, get_redis)
+├── config.py            # pydantic-settings (from .env)
+├── dependencies.py      # DI: get_db, get_redis, get_current_user, require_permissions
 ├── database.py          # SQLAlchemy async engine
 ├── redis.py             # Redis async client
 ├── celery_app.py        # Celery config
-├── api/                 # Route handlers
-├── service/             # Business logic
-├── repository/          # Data access layer
-├── entity/              # Domain entities
-├── handler/             # Request/Response DTOs
-├── tools/auth/          # Auth utilities (jwt, hashing)
-├── schemas/             # Pydantic schemas (common.py has ApiResponse)
+├── schemas/common.py    # ApiResponse[T]
 └── tasks/               # Celery tasks
 ```
