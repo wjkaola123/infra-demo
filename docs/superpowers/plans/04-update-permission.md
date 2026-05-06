@@ -104,10 +104,158 @@ Endpoint
 API Response (JSON)
 ```
 
+## Tests
+
+```python
+@pytest.mark.asyncio
+async def test_update_permission(client: AsyncClient, db_session):
+    """Test updating a permission's name and description."""
+    token = await get_admin_token(client, db_session, "updateperm")
+    timestamp = int(time.time() * 1000)
+
+    create_response = await client.post(
+        "/api/v1/permissions/",
+        json={"name": f"to_update_{timestamp}", "description": "Original desc"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert create_response.status_code == 201
+    perm_id = create_response.json()["data"]["id"]
+
+    response = await client.put(
+        f"/api/v1/permissions/{perm_id}",
+        json={"name": f"updated_name_{timestamp}", "description": "Updated desc"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "success"
+    assert data["data"]["name"] == f"updated_name_{timestamp}"
+    assert data["data"]["description"] == "Updated desc"
+
+
+@pytest.mark.asyncio
+async def test_update_permission_partial_update(client: AsyncClient, db_session):
+    """Test partial update - only name."""
+    token = await get_admin_token(client, db_session, "partialperm")
+    timestamp = int(time.time() * 1000)
+
+    create_response = await client.post(
+        "/api/v1/permissions/",
+        json={"name": f"partial_{timestamp}", "description": "Original"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    perm_id = create_response.json()["data"]["id"]
+
+    response = await client.put(
+        f"/api/v1/permissions/{perm_id}",
+        json={"name": f"partial_updated_{timestamp}"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"]["name"] == f"partial_updated_{timestamp}"
+    assert data["data"]["description"] == "Original"
+
+
+@pytest.mark.asyncio
+async def test_update_permission_not_found(client: AsyncClient, db_session):
+    """Test updating non-existent permission returns 404."""
+    token = await get_admin_token(client, db_session, "updatenotfound")
+
+    response = await client.put(
+        "/api/v1/permissions/99999",
+        json={"name": "some:name"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_permission_duplicate_name(client: AsyncClient, db_session):
+    """Test updating permission with duplicate name returns 400."""
+    token = await get_admin_token(client, db_session, "dupnameperm")
+    timestamp = int(time.time() * 1000)
+
+    await client.post(
+        "/api/v1/permissions/",
+        json={"name": f"existing_{timestamp}", "description": "First"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    create_response = await client.post(
+        "/api/v1/permissions/",
+        json={"name": f"to_update_{timestamp}", "description": "Second"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    perm_id = create_response.json()["data"]["id"]
+
+    response = await client.put(
+        f"/api/v1/permissions/{perm_id}",
+        json={"name": f"existing_{timestamp}"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_permission_invalid_name_format(client: AsyncClient, db_session):
+    """Test updating permission with invalid name format returns 422."""
+    token = await get_admin_token(client, db_session, "invalidup")
+    timestamp = int(time.time() * 1000)
+
+    create_response = await client.post(
+        "/api/v1/permissions/",
+        json={"name": f"valid_{timestamp}"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    perm_id = create_response.json()["data"]["id"]
+
+    response = await client.put(
+        f"/api/v1/permissions/{perm_id}",
+        json={"name": "InvalidName"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_permission_requires_auth(client: AsyncClient):
+    """Test that updating permission requires authentication."""
+    response = await client.put(
+        "/api/v1/permissions/1",
+        json={"name": "some:name"}
+    )
+    assert response.status_code in [401, 403]
+
+
+@pytest.mark.asyncio
+async def test_update_permission_requires_write_permission(client: AsyncClient, db_session):
+    """Test that updating permission requires permissions:write."""
+    timestamp = int(time.time() * 1000)
+    user_data = {
+        "username": f"updatenoperm_{timestamp}",
+        "email": f"updatenoperm_{timestamp}@test.com",
+        "password": "password123"
+    }
+    register_response = await client.post("/api/v1/auth/register", json=user_data)
+    token = register_response.json()["data"]["access_token"]
+
+    response = await client.put(
+        "/api/v1/permissions/1",
+        json={"name": f"some:name_{timestamp}"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 403
+```
+
 ## Verification
 
 - Run migration first: `docker-compose exec api python -m alembic upgrade head`
 - Run: `docker-compose exec api python -m pytest tests/ -v`
-- Test: `PUT /api/v1/permissions/1` with `{"name": "articles:write", "description": "Updated desc"}`
-- Duplicate name: should return 400 error
-- Non-existent ID: should return 404 error
+- Run: `docker-compose exec api python -m pytest tests/test_api/test_permissions.py -v`
+- Update existing permission → 200
+- Update with duplicate name → 400
+- Update non-existent → 404
+- Update with invalid name format → 422
+- No auth → 401/403
+- No `permissions:write` permission → 403
