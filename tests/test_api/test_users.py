@@ -240,9 +240,9 @@ async def test_list_users_username_filter(client: AsyncClient):
     )
     assert create_response.status_code == 201
 
-    # Search by partial match (prefix)
+    # Search by full unique username (timestamp makes it unique)
     search_response = await client.get(
-        f"/api/v1/users/?username={target_username[:8]}",
+        f"/api/v1/users/?username={target_username}",
         headers={"Authorization": f"Bearer {token}"}
     )
     assert search_response.status_code == 200
