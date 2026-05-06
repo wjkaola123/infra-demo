@@ -18,6 +18,12 @@ class PermissionRepository:
         result = await self.session.execute(select(Permission).where(Permission.name == name))
         return result.scalar_one_or_none()
 
+    async def get_by_id(self, permission_id: int) -> Permission | None:
+        result = await self.session.execute(
+            select(Permission).where(Permission.id == permission_id)
+        )
+        return result.scalar_one_or_none()
+
     async def list_paginated(self, page: int, page_size: int, name: str | None = None) -> tuple[list[Permission], int]:
         offset = (page - 1) * page_size
         base_query = select(Permission)

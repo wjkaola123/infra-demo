@@ -10,6 +10,26 @@ from app.repository.entity.user import User
 router = APIRouter()
 
 
+@router.get("/{permission_id}", response_model=ApiResponse[PermissionResponse])
+async def get_permission(
+    permission_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permissions(["permissions:read"])),
+):
+    service = PermissionService(db)
+    try:
+        entity = await service.get_permission(permission_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    return ApiResponse(data=PermissionResponse(
+        id=entity.id,
+        name=entity.name,
+        description=entity.description,
+        created_at=entity.created_at,
+        updated_at=entity.updated_at,
+    ))
+
+
 @router.post("/", response_model=ApiResponse[PermissionResponse], status_code=status.HTTP_201_CREATED)
 async def create_permission(
     body: CreatePermissionRequest = Body(...),

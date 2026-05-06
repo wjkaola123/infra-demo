@@ -21,6 +21,18 @@ class PermissionService:
             updated_at=perm.updated_at,
         )
 
+    async def get_permission(self, permission_id: int) -> PermissionEntity:
+        perm = await self.repo.get_by_id(permission_id)
+        if not perm:
+            raise ValueError("Permission not found")
+        return PermissionEntity(
+            id=perm.id,
+            name=perm.name,
+            description=perm.description,
+            created_at=perm.created_at,
+            updated_at=perm.updated_at,
+        )
+
     async def list_permissions(self, page: int, page_size: int, name: str | None) -> tuple[list[PermissionEntity], int, dict]:
         items, total = await self.repo.list_paginated(page, page_size, name)
         total_pages = (total + page_size - 1) // page_size if total > 0 else 0

@@ -222,3 +222,88 @@ async def test_list_permissions_requires_read_permission(client: AsyncClient, db
     assert response.status_code == 403
 
 
+@pytest.mark.asyncio
+async def test_get_permission(client: AsyncClient, db_session):
+    """Test getting a permission by ID."""
+    token = await get_admin_token(client, db_session, "getperm")
+    timestamp = int(time.time() * 1000)
+
+    create_response = await client.post(
+        "/api/v1/permissions/",
+        json={"name": f"get:test_{timestamp}", "description": "Test permission"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    perm_id = create_response.json()["data"]["id"]
+
+    response = await client.get(
+        f"/api/v1/permissions/{perm_id}",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "success"
+    assert data["status"] == 0
+    assert data["data"]["id"] == perm_id
+    assert data["data"]["name"] == f"get:test_{timestamp}"
+    assert data["data"]["description"] == "Test permission"
+    assert "created_at" in data["data"]
+    assert "updated_at" in data["data"]
+
+
+@pytest.mark.asyncio
+async def test_get_permission_not_found(client: AsyncClient, db_session):
+    """Test getting a non-existent permission returns 404."""
+    token = await get_admin_token(client, db_session, "notfoundperm")
+
+    response = await client.get(
+        "/api/v1/permissions/999999",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_permission_requires_auth(client: AsyncClient):
+    """Test that getting permission by ID requires authentication."""
+    response = await client.get("/api/v1/permissions/1")
+    assert response.status_code in [401, 403]
+
+
+@pytest.mark.asyncio
+async def test_get_permission_requires_read_permission(client: AsyncClient, db_session):
+    """Test that getting permission by ID requires permissions:read."""
+    from sqlalchemy import text
+    timestamp = int(time.time() * 1000)
+    user_data = {
+        "username": f"getnoread_{timestamp}",
+        "email": f"getnoread_{timestamp}@test.com",
+        "password": "password123"
+    }
+    register_response = await client.post("/api/v1/auth/register", json=user_data)
+    token = register_response.json()["data"]["access_token"]
+    user_name = register_response.json()["data"]["username"]
+
+    result = await db_session.execute(
+        text("SELECT id FROM users WHERE username = :username"),
+        {"username": user_name}
+    )
+    user_id = result.scalar_one()
+
+    result = await db_session.execute(text("SELECT id FROM roles WHERE name = 'viewer'"))
+    viewer_id = result.scalar_one()
+    await db_session.execute(
+        text("DELETE FROM user_roles WHERE user_id = :user_id"),
+        {"user_id": user_id}
+    )
+    await db_session.execute(
+        text("INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)"),
+        {"user_id": user_id, "role_id": viewer_id}
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/v1/permissions/1",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 403
+
