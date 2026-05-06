@@ -41,3 +41,15 @@ class PermissionRepository:
             base_query.offset(offset).limit(page_size)
         )
         return list(result.scalars().all()), total
+
+    async def update(self, permission_id: int, name: str | None = None, description: str | None = None) -> Permission | None:
+        perm = await self.get_by_id(permission_id)
+        if not perm:
+            return None
+        if name is not None:
+            perm.name = name
+        if description is not None:
+            perm.description = description
+        await self.session.commit()
+        await self.session.refresh(perm)
+        return perm

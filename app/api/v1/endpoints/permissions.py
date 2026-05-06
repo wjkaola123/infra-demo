@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Body, status, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db, require_permissions
 from app.schemas.common import ApiResponse
-from app.handler.entity.request.permission import CreatePermissionRequest
+from app.handler.entity.request.permission import CreatePermissionRequest, UpdatePermissionRequest
 from app.handler.entity.response.permission import PermissionResponse, PaginatedPermissionResponse
 from app.service.permission_service import PermissionService
 from app.repository.entity.user import User
@@ -47,6 +47,30 @@ async def create_permission(
         description=perm.description,
         created_at=perm.created_at,
         updated_at=perm.updated_at,
+    ))
+
+
+@router.put("/{permission_id}", response_model=ApiResponse[PermissionResponse])
+async def update_permission(
+    permission_id: int,
+    body: UpdatePermissionRequest = Body(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permissions(["permissions:write"])),
+):
+    service = PermissionService(db)
+    try:
+        entity = await service.update_permission(permission_id, body.name, body.description)
+    except ValueError as e:
+        detail = str(e).lower()
+        if "not found" in detail:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return ApiResponse(data=PermissionResponse(
+        id=entity.id,
+        name=entity.name,
+        description=entity.description,
+        created_at=entity.created_at,
+        updated_at=entity.updated_at,
     ))
 
 

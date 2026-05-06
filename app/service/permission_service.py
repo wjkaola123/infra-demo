@@ -47,3 +47,19 @@ class PermissionService:
             for p in items
         ]
         return entities, total, {"page": page, "page_size": page_size, "total_pages": total_pages}
+
+    async def update_permission(self, permission_id: int, name: str | None, description: str | None) -> PermissionEntity:
+        if name is not None:
+            existing = await self.repo.get_by_name(name)
+            if existing and existing.id != permission_id:
+                raise ValueError("Permission name already exists")
+        perm = await self.repo.update(permission_id, name, description)
+        if not perm:
+            raise ValueError("Permission not found")
+        return PermissionEntity(
+            id=perm.id,
+            name=perm.name,
+            description=perm.description,
+            created_at=perm.created_at,
+            updated_at=perm.updated_at,
+        )
