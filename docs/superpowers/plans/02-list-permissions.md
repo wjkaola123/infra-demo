@@ -47,21 +47,25 @@ async def list_paginated(self, page: int, page_size: int, name: str | None = Non
     return list(result.scalars().all()), total
 ```
 
-**3. `app/service/permission_service.py`** — Add list method
+**3. `app/service/permission_service.py`** — Add list method (DDD: ORM → Domain Entity)
 ```python
-async def list_permissions(self, page: int, page_size: int, name: str | None) -> dict:
+async def list_permissions(self, page: int, page_size: int, name: str | None) -> tuple[list[PermissionEntity], int, dict]:
     items, total = await self.repo.list_paginated(page, page_size, name)
-    total_pages = (total + page_size - 1) // page_size
-    return {
-        "items": [PermissionEntity.model_validate(p) for p in items],
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": total_pages,
-    }
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+    entities = [
+        PermissionEntity(
+            id=p.id,
+            name=p.name,
+            description=p.description,
+            created_at=p.created_at,
+            updated_at=p.updated_at,
+        )
+        for p in items
+    ]
+    return entities, total, {"page": page, "page_size": page_size, "total_pages": total_pages}
 ```
 
-**4. `app/api/v1/endpoints/permissions.py`** — Add list endpoint
+**4. `app/api/v1/endpoints/permissions.py`** — Add list endpoint (DDD: Domain Entity → Response DTO)
 ```python
 @router.get("/", response_model=ApiResponse[PaginatedPermissionResponse])
 async def list_permissions(
@@ -72,15 +76,31 @@ async def list_permissions(
     current_user: User = Depends(require_permissions(["permissions:read"])),
 ):
     service = PermissionService(db)
-    result = await service.list_permissions(page, page_size, name)
+    entities, total, meta = await service.list_permissions(page, page_size, name)
     return ApiResponse(data=PaginatedPermissionResponse(
-        items=[PermissionResponse.model_validate(p) for p in result["items"]],
-        total=result["total"],
-        page=result["page"],
-        page_size=result["page_size"],
-        total_pages=result["total_pages"],
+        items=[PermissionResponse.model_validate(e) for e in entities],
+        total=total,
+        page=meta["page"],
+        page_size=meta["page_size"],
+        total_pages=meta["total_pages"],
     ))
 ```
+
+## Data Flow (DDD)
+
+```
+DB (permissions table)
+  ↓ ORM: Permission (SQLAlchemy model)
+Repository
+  ↓ Conversion: Permission → PermissionEntity
+Service
+  ↓ Conversion: PermissionEntity → PermissionResponse
+Handler/Endpoint
+  ↓
+API Response (JSON)
+```
+
+Service 层手动将 ORM 的 `Permission` 转成 `PermissionEntity`，endpoint 再用 Pydantic 的 `model_validate` 把 `PermissionEntity` 转成 `PermissionResponse`。
 
 ## Verification
 

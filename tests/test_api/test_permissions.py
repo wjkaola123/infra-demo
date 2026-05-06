@@ -116,3 +116,109 @@ async def test_create_permission_requires_write_permission(client: AsyncClient, 
     assert response.status_code == 403
 
 
+@pytest.mark.asyncio
+async def test_list_permissions(client: AsyncClient, db_session):
+    """Test listing permissions with pagination."""
+    token = await get_admin_token(client, db_session, "listperm")
+
+    response = await client.get(
+        "/api/v1/permissions/",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "success"
+    assert "items" in data["data"]
+    assert "total" in data["data"]
+    assert "page" in data["data"]
+    assert "page_size" in data["data"]
+    assert "total_pages" in data["data"]
+    assert isinstance(data["data"]["items"], list)
+    for perm in data["data"]["items"]:
+        assert "id" in perm
+        assert "name" in perm
+        assert "description" in perm
+
+
+@pytest.mark.asyncio
+async def test_list_permissions_with_pagination(client: AsyncClient, db_session):
+    """Test listing permissions with pagination params."""
+    token = await get_admin_token(client, db_session, "listpage")
+
+    response = await client.get(
+        "/api/v1/permissions/?page=1&page_size=5",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"]["page"] == 1
+    assert data["data"]["page_size"] == 5
+    assert len(data["data"]["items"]) <= 5
+
+
+@pytest.mark.asyncio
+async def test_list_permissions_filter_by_name(client: AsyncClient, db_session):
+    """Test filtering permissions by name returns case-insensitive partial matches."""
+    token = await get_admin_token(client, db_session, "filterperm")
+
+    response = await client.get(
+        "/api/v1/permissions/?name=permissions",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # Should return permissions containing "permissions" in name (permissions:read, permissions:write, etc.)
+    assert len(data["data"]["items"]) >= 3
+    names = [p["name"] for p in data["data"]["items"]]
+    assert "permissions:read" in names
+    assert "permissions:write" in names
+    assert "permissions:delete" in names
+
+
+@pytest.mark.asyncio
+async def test_list_permissions_requires_auth(client: AsyncClient):
+    """Test that listing permissions requires authentication."""
+    response = await client.get("/api/v1/permissions/")
+    assert response.status_code in [401, 403]
+
+
+@pytest.mark.asyncio
+async def test_list_permissions_requires_read_permission(client: AsyncClient, db_session):
+    """Test that listing permissions requires permissions:read."""
+    from sqlalchemy import text
+    timestamp = int(time.time() * 1000)
+    user_data = {
+        "username": f"listnoread_{timestamp}",
+        "email": f"listnoread_{timestamp}@test.com",
+        "password": "password123"
+    }
+    register_response = await client.post("/api/v1/auth/register", json=user_data)
+    token = register_response.json()["data"]["access_token"]
+    user_name = register_response.json()["data"]["username"]
+
+    result = await db_session.execute(
+        text("SELECT id FROM users WHERE username = :username"),
+        {"username": user_name}
+    )
+    user_id = result.scalar_one()
+
+    # Assign viewer role (only has users:read, not permissions:read)
+    result = await db_session.execute(text("SELECT id FROM roles WHERE name = 'viewer'"))
+    viewer_id = result.scalar_one()
+    await db_session.execute(
+        text("DELETE FROM user_roles WHERE user_id = :user_id"),
+        {"user_id": user_id}
+    )
+    await db_session.execute(
+        text("INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)"),
+        {"user_id": user_id, "role_id": viewer_id}
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/v1/permissions/",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 403
+
+

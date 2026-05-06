@@ -35,18 +35,10 @@ Error Responses:
 
 ## File Changes
 
-### New Files (0)
+### Modified Files (3)
 
-### Modified Files (2)
-
-**1. `app/repository/permission_repository.py`** — Add delete and usage-check methods
+**1. `app/repository/permission_repository.py`** — Add is_assigned_to_roles and delete methods
 ```python
-async def get_by_id(self, permission_id: int) -> Permission | None:
-    result = await self.session.execute(
-        select(Permission).where(Permission.id == permission_id)
-    )
-    return result.scalar_one_or_none()
-
 async def is_assigned_to_roles(self, permission_id: int) -> bool:
     result = await self.session.execute(
         select(role_permissions).where(
@@ -64,7 +56,7 @@ async def delete(self, permission_id: int) -> bool:
     return True
 ```
 
-**2. `app/service/permission_service.py`** — Add delete_permission method
+**2. `app/service/permission_service.py`** — Add delete_permission method (DDD: business logic)
 ```python
 async def delete_permission(self, permission_id: int) -> bool:
     existing = await self.repo.get_by_id(permission_id)
@@ -78,7 +70,6 @@ async def delete_permission(self, permission_id: int) -> bool:
 **3. `app/api/v1/endpoints/permissions.py`** — Add delete endpoint
 ```python
 from fastapi import APIRouter, Depends, Path, HTTPException, status
-from app.repository.entity.user import User
 
 @router.delete("/{permission_id}", response_model=ApiResponse[dict], status_code=status.HTTP_200_OK)
 async def delete_permission(
@@ -90,11 +81,25 @@ async def delete_permission(
     try:
         deleted = await service.delete_permission(permission_id)
     except ValueError as e:
-        detail = str(e)
-        if "not found" in detail.lower():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+        detail = str(e).lower()
+        if "not found" in detail:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     return ApiResponse(data={"deleted": deleted})
+```
+
+## Data Flow (DDD)
+
+```
+DB (permissions table)
+  ↓ ORM: get_by_id, is_assigned_to_roles, delete
+Repository: get_by_id(), is_assigned_to_roles(), delete()
+  ↓ Business rule check: assigned to roles?
+Service: delete_permission() → bool
+  ↓
+Endpoint: return {"deleted": bool}
+  ↓
+API Response (JSON)
 ```
 
 ## Tests
@@ -106,8 +111,6 @@ async def test_delete_permission(client: AsyncClient, db_session):
     token = await get_admin_token(client, db_session, "delperm")
     timestamp = int(time.time() * 1000)
 
-    # Create a permission (admin has permissions:write, which covers delete need in test)
-    # Actually need permissions:delete - use admin role which has all
     response = await client.post(
         "/api/v1/permissions/",
         json={"name": f"to_delete_{timestamp}", "description": "Will be deleted"},
@@ -116,7 +119,6 @@ async def test_delete_permission(client: AsyncClient, db_session):
     assert response.status_code == 201
     perm_id = response.json()["data"]["id"]
 
-    # Delete it
     delete_resp = await client.delete(
         f"/api/v1/permissions/{perm_id}",
         headers={"Authorization": f"Bearer {token}"}
@@ -124,7 +126,6 @@ async def test_delete_permission(client: AsyncClient, db_session):
     assert delete_resp.status_code == 200
     assert delete_resp.json()["data"]["deleted"] is True
 
-    # Verify gone
     get_resp = await client.get(
         f"/api/v1/permissions/{perm_id}",
         headers={"Authorization": f"Bearer {token}"}
@@ -150,7 +151,6 @@ async def test_delete_permission_assigned_to_role(client: AsyncClient, db_sessio
     token = await get_admin_token(client, db_session, "delpermassigned")
     timestamp = int(time.time() * 1000)
 
-    # Create permission
     response = await client.post(
         "/api/v1/permissions/",
         json={"name": f"assigned_perm_{timestamp}"},
@@ -159,14 +159,12 @@ async def test_delete_permission_assigned_to_role(client: AsyncClient, db_sessio
     assert response.status_code == 201
     perm_id = response.json()["data"]["id"]
 
-    # Assign it to admin role (role id 1)
     await db_session.execute(
         text("INSERT INTO role_permissions (role_id, permission_id) VALUES (1, :perm_id)"),
         {"perm_id": perm_id}
     )
     await db_session.commit()
 
-    # Try to delete - should fail 409
     delete_resp = await client.delete(
         f"/api/v1/permissions/{perm_id}",
         headers={"Authorization": f"Bearer {token}"}
@@ -184,7 +182,6 @@ async def test_delete_permission_requires_auth(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_delete_permission_requires_delete_permission(client: AsyncClient, db_session):
     """Test that deleting permission requires permissions:delete."""
-    # Create user without permissions:delete
     timestamp = int(time.time() * 1000)
     user_data = {
         "username": f"odelete_{timestamp}",

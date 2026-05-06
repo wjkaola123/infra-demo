@@ -25,16 +25,22 @@ async def get_by_id(self, permission_id: int) -> Permission | None:
     return result.scalar_one_or_none()
 ```
 
-**2. `app/service/permission_service.py`** — Add get method
+**2. `app/service/permission_service.py`** — Add get method (DDD: ORM → Domain Entity)
 ```python
 async def get_permission(self, permission_id: int) -> PermissionEntity:
     perm = await self.repo.get_by_id(permission_id)
     if not perm:
         raise ValueError("Permission not found")
-    return PermissionEntity.model_validate(perm)
+    return PermissionEntity(
+        id=perm.id,
+        name=perm.name,
+        description=perm.description,
+        created_at=perm.created_at,
+        updated_at=perm.updated_at,
+    )
 ```
 
-**3. `app/api/v1/endpoints/permissions.py`** — Add get endpoint
+**3. `app/api/v1/endpoints/permissions.py`** — Add get endpoint (DDD: Domain Entity → Response DTO)
 ```python
 @router.get("/{permission_id}", response_model=ApiResponse[PermissionResponse])
 async def get_permission(
@@ -43,8 +49,31 @@ async def get_permission(
     current_user: User = Depends(require_permissions(["permissions:read"])),
 ):
     service = PermissionService(db)
-    perm = await service.get_permission(permission_id)
-    return ApiResponse(data=PermissionResponse.model_validate(perm))
+    try:
+        entity = await service.get_permission(permission_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    return ApiResponse(data=PermissionResponse(
+        id=entity.id,
+        name=entity.name,
+        description=entity.description,
+        created_at=entity.created_at,
+        updated_at=entity.updated_at,
+    ))
+```
+
+## Data Flow (DDD)
+
+```
+DB (permissions table)
+  ↓ ORM: select(Permission).where(id=...)
+Repository: get_by_id()
+  ↓ Conversion: Permission → PermissionEntity
+Service: get_permission() → PermissionEntity
+  ↓ Conversion: PermissionEntity → PermissionResponse
+Endpoint
+  ↓
+API Response (JSON)
 ```
 
 ## Verification

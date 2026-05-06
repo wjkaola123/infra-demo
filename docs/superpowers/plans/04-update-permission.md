@@ -45,7 +45,7 @@ async def update(self, permission_id: int, name: str | None = None, description:
     return perm
 ```
 
-**3. `app/service/permission_service.py`** — Add update method
+**3. `app/service/permission_service.py`** — Add update method (DDD: ORM → Domain Entity)
 ```python
 async def update_permission(self, permission_id: int, name: str | None, description: str | None) -> PermissionEntity:
     if name is not None:
@@ -55,10 +55,16 @@ async def update_permission(self, permission_id: int, name: str | None, descript
     perm = await self.repo.update(permission_id, name, description)
     if not perm:
         raise ValueError("Permission not found")
-    return PermissionEntity.model_validate(perm)
+    return PermissionEntity(
+        id=perm.id,
+        name=perm.name,
+        description=perm.description,
+        created_at=perm.created_at,
+        updated_at=perm.updated_at,
+    )
 ```
 
-**4. `app/api/v1/endpoints/permissions.py`** — Add update endpoint
+**4. `app/api/v1/endpoints/permissions.py`** — Add update endpoint (DDD: Domain Entity → Response DTO)
 ```python
 @router.put("/{permission_id}", response_model=ApiResponse[PermissionResponse])
 async def update_permission(
@@ -68,8 +74,34 @@ async def update_permission(
     current_user: User = Depends(require_permissions(["permissions:write"])),
 ):
     service = PermissionService(db)
-    perm = await service.update_permission(permission_id, body.name, body.description)
-    return ApiResponse(data=PermissionResponse.model_validate(perm))
+    try:
+        entity = await service.update_permission(permission_id, body.name, body.description)
+    except ValueError as e:
+        detail = str(e).lower()
+        if "not found" in detail:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return ApiResponse(data=PermissionResponse(
+        id=entity.id,
+        name=entity.name,
+        description=entity.description,
+        created_at=entity.created_at,
+        updated_at=entity.updated_at,
+    ))
+```
+
+## Data Flow (DDD)
+
+```
+DB (permissions table)
+  ↓ ORM: UPDATE + commit + refresh
+Repository: update()
+  ↓ Conversion: Permission → PermissionEntity
+Service: update_permission() → PermissionEntity
+  ↓ Conversion: PermissionEntity → PermissionResponse
+Endpoint
+  ↓
+API Response (JSON)
 ```
 
 ## Verification

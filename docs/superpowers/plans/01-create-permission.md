@@ -60,7 +60,7 @@ class PermissionRepository:
         return result.scalar_one_or_none()
 ```
 
-**4. `app/service/permission_service.py`** — Business logic
+**4. `app/service/permission_service.py`** — Business logic (DDD: ORM → Domain Entity)
 ```python
 from app.repository.permission_repository import PermissionRepository
 from app.entity.permission import PermissionEntity
@@ -74,7 +74,13 @@ class PermissionService:
         if existing:
             raise ValueError("Permission already exists")
         perm = await self.repo.create(name, description)
-        return PermissionEntity.model_validate(perm)
+        return PermissionEntity(
+            id=perm.id,
+            name=perm.name,
+            description=perm.description,
+            created_at=perm.created_at,
+            updated_at=perm.updated_at,
+        )
 ```
 
 **5. `app/handler/entity/response/permission.py`** — Response DTO
@@ -92,16 +98,16 @@ class PermissionResponse(BaseModel):
 
 ### Modified Files (1)
 
-**6. `app/api/v1/endpoints/permissions.py`** — Add create endpoint
+**6. `app/api/v1/endpoints/permissions.py`** — Add create endpoint (DDD: Domain Entity → Response DTO)
 ```python
-from fastapi import APIRouter, Depends, Body, status
+from fastapi import APIRouter, Depends, Body, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db, require_permissions
 from app.schemas.common import ApiResponse
 from app.handler.entity.request.permission import CreatePermissionRequest
 from app.handler.entity.response.permission import PermissionResponse
 from app.service.permission_service import PermissionService
-from app.entity.user import User
+from app.repository.entity.user import User
 
 router = APIRouter()
 
@@ -112,14 +118,37 @@ async def create_permission(
     current_user: User = Depends(require_permissions(["permissions:write"])),
 ):
     service = PermissionService(db)
-    perm = await service.create_permission(body.name, body.description)
-    return ApiResponse(data=PermissionResponse.model_validate(perm))
+    try:
+        entity = await service.create_permission(body.name, body.description)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return ApiResponse(data=PermissionResponse(
+        id=entity.id,
+        name=entity.name,
+        description=entity.description,
+        created_at=entity.created_at,
+        updated_at=entity.updated_at,
+    ))
 ```
 
 **7. `app/api/v1/router.py`** — Wire up permissions router
 ```python
 from app.api.v1.endpoints import permissions as permissions_router
 router.include_router(permissions_router.router, prefix="/permissions", tags=["permissions"])
+```
+
+## Data Flow (DDD)
+
+```
+DB (permissions table)
+  ↓ ORM: Permission (SQLAlchemy model)
+Repository: create()
+  ↓ Conversion: Permission → PermissionEntity
+Service: create_permission() → PermissionEntity
+  ↓ Conversion: PermissionEntity → PermissionResponse
+Endpoint
+  ↓
+API Response (JSON)
 ```
 
 ### New Test File (1)
