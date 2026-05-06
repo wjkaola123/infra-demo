@@ -63,3 +63,11 @@ class PermissionService:
             created_at=perm.created_at,
             updated_at=perm.updated_at,
         )
+
+    async def delete_permission(self, permission_id: int) -> bool:
+        existing = await self.repo.get_by_id(permission_id)
+        if not existing:
+            raise ValueError("Permission not found")
+        if await self.repo.is_assigned_to_roles(permission_id):
+            raise ValueError("Permission is assigned to roles and cannot be deleted")
+        return await self.repo.delete(permission_id)

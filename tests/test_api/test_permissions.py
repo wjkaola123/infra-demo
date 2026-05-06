@@ -448,3 +448,97 @@ async def test_update_permission_requires_write_permission(client: AsyncClient, 
     )
     assert response.status_code == 403
 
+
+@pytest.mark.asyncio
+async def test_delete_permission(client: AsyncClient, db_session):
+    """Test deleting a permission."""
+    token = await get_admin_token(client, db_session, "delperm")
+    timestamp = int(time.time() * 1000)
+
+    response = await client.post(
+        "/api/v1/permissions/",
+        json={"name": f"delperm:delete_{timestamp}", "description": "Will be deleted"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 201
+    perm_id = response.json()["data"]["id"]
+
+    delete_resp = await client.delete(
+        f"/api/v1/permissions/{perm_id}",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert delete_resp.status_code == 200
+    assert delete_resp.json()["data"]["deleted"] is True
+
+    get_resp = await client.get(
+        f"/api/v1/permissions/{perm_id}",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_permission_not_found(client: AsyncClient, db_session):
+    """Test deleting non-existent permission returns 404."""
+    token = await get_admin_token(client, db_session, "delpermnotfound")
+
+    response = await client.delete(
+        "/api/v1/permissions/99999",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_permission_assigned_to_role(client: AsyncClient, db_session):
+    """Test deleting a permission assigned to a role returns 409."""
+    from sqlalchemy import text
+    token = await get_admin_token(client, db_session, "delpermassigned")
+    timestamp = int(time.time() * 1000)
+
+    response = await client.post(
+        "/api/v1/permissions/",
+        json={"name": f"delpermassigned:delete_{timestamp}"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 201
+    perm_id = response.json()["data"]["id"]
+
+    await db_session.execute(
+        text("INSERT INTO role_permissions (role_id, permission_id) VALUES (1, :perm_id)"),
+        {"perm_id": perm_id}
+    )
+    await db_session.commit()
+
+    delete_resp = await client.delete(
+        f"/api/v1/permissions/{perm_id}",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert delete_resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_delete_permission_requires_auth(client: AsyncClient):
+    """Test that deleting permission requires authentication."""
+    response = await client.delete("/api/v1/permissions/1")
+    assert response.status_code in [401, 403]
+
+
+@pytest.mark.asyncio
+async def test_delete_permission_requires_delete_permission(client: AsyncClient, db_session):
+    """Test that deleting permission requires permissions:delete."""
+    timestamp = int(time.time() * 1000)
+    user_data = {
+        "username": f"odelete_{timestamp}",
+        "email": f"odelete_{timestamp}@test.com",
+        "password": "password123"
+    }
+    register_response = await client.post("/api/v1/auth/register", json=user_data)
+    token = register_response.json()["data"]["access_token"]
+
+    response = await client.delete(
+        "/api/v1/permissions/1",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 403
+

@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from app.repository.entity.role import Permission
+from app.repository.entity.role import Permission, role_permissions
 
 
 class PermissionRepository:
@@ -53,3 +53,19 @@ class PermissionRepository:
         await self.session.commit()
         await self.session.refresh(perm)
         return perm
+
+    async def is_assigned_to_roles(self, permission_id: int) -> bool:
+        result = await self.session.execute(
+            select(role_permissions).where(
+                role_permissions.c.permission_id == permission_id
+            ).limit(1)
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def delete(self, permission_id: int) -> bool:
+        permission = await self.get_by_id(permission_id)
+        if not permission:
+            return False
+        await self.session.delete(permission)
+        await self.session.commit()
+        return True

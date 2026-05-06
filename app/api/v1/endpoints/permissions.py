@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Body, status, HTTPException, Query
+from fastapi import APIRouter, Depends, Body, status, HTTPException, Query, Path
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db, require_permissions
 from app.schemas.common import ApiResponse
@@ -72,6 +72,23 @@ async def update_permission(
         created_at=entity.created_at,
         updated_at=entity.updated_at,
     ))
+
+
+@router.delete("/{permission_id}", response_model=ApiResponse[dict], status_code=status.HTTP_200_OK)
+async def delete_permission(
+    permission_id: int = Path(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permissions(["permissions:delete"])),
+):
+    service = PermissionService(db)
+    try:
+        deleted = await service.delete_permission(permission_id)
+    except ValueError as e:
+        detail = str(e).lower()
+        if "not found" in detail:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    return ApiResponse(data={"deleted": deleted})
 
 
 @router.get("/", response_model=ApiResponse[PaginatedPermissionResponse])
