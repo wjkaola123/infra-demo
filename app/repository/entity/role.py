@@ -1,6 +1,12 @@
-from sqlalchemy import Column, Integer, String, Table, ForeignKey
+from sqlalchemy import Column, Integer, String, Table, ForeignKey, event
 from sqlalchemy.orm import relationship
 from app.repository.entity.base import Base, TimestampMixin
+from app.service.activity_log_service import (
+    receive_after_insert,
+    receive_before_update,
+    receive_after_update,
+    receive_before_delete,
+)
 
 
 # Association table: user-role
@@ -40,3 +46,9 @@ class Role(Base, TimestampMixin):
         secondary=role_permissions,
         lazy="selectin",
     )
+
+
+event.listens_for(Role, "after_insert")(receive_after_insert)
+event.listens_for(Role, "before_update")(receive_before_update)
+event.listens_for(Role, "after_update")(receive_after_update)
+event.listens_for(Role, "before_delete")(receive_before_delete)

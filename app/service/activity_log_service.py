@@ -1,6 +1,10 @@
+import logging
+
 from sqlalchemy.orm import Mapper
 from sqlalchemy.engine import Connection
 from app.context import audit_context
+
+logger = logging.getLogger(__name__)
 
 
 def _resource_type_for_model(model_tablename: str) -> str:
@@ -55,7 +59,10 @@ def _write_activity_log(
 
 
 def receive_after_insert(mapper: Mapper, connection: Connection, target) -> None:
-    _write_activity_log(connection, "CREATE", target, None, _model_to_dict(target))
+    try:
+        _write_activity_log(connection, "CREATE", target, None, _model_to_dict(target))
+    except Exception:
+        logger.exception("Failed to write activity log for INSERT on %s", target.__table__.name)
 
 
 def receive_before_update(mapper: Mapper, connection: Connection, target) -> None:
@@ -65,11 +72,18 @@ def receive_before_update(mapper: Mapper, connection: Connection, target) -> Non
 def receive_after_update(mapper: Mapper, connection: Connection, target) -> None:
     if not hasattr(target, "_audit_old_values"):
         return
-    old_value = target._audit_old_values
-    new_value = _model_to_dict(target)
-    _write_activity_log(connection, "UPDATE", target, old_value, new_value)
-    del target._audit_old_values
+    try:
+        old_value = target._audit_old_values
+        new_value = _model_to_dict(target)
+        _write_activity_log(connection, "UPDATE", target, old_value, new_value)
+    except Exception:
+        logger.exception("Failed to write activity log for UPDATE on %s", target.__table__.name)
+    finally:
+        del target._audit_old_values
 
 
 def receive_before_delete(mapper: Mapper, connection: Connection, target) -> None:
-    _write_activity_log(connection, "DELETE", target, _model_to_dict(target), None)
+    try:
+        _write_activity_log(connection, "DELETE", target, _model_to_dict(target), None)
+    except Exception:
+        logger.exception("Failed to write activity log for DELETE on %s", target.__table__.name)
