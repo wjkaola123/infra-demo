@@ -59,50 +59,94 @@ created_at: datetime
 
 ### 集成点
 
-#### 1. 中间件 `app/middleware/audit_middleware.py`
+#### 1. 用户上下文 ContextVar
 
-拦截 `POST`/`DELETE` 请求，自动捕获：
-- 从 `get_current_user()` 获取操作人
-- 从请求体解析 `new_value`（CREATE）
-- 从响应 body 解析 `resource_id`（CREATE）
-- DELETE 时 old_value 通过请求路径 `/{resource_type}/{resource_id}` 查库获取
-- 异步写入 ActivityLog
+为解决 SQLAlchemy 事件无法访问请求上下文的问题，使用 `contextvars` 在请求生命周期内传递用户信息。
 
-中间件注册到 `app/main.py`。
-
-#### 2. Service 层 UPDATE 补钩
-
-在 `UserService`/`RoleService`/`PermissionService` 的 `update_*` 方法末尾，调用 `ActivityLogService.log_update()`。
-
-old_value 和 new_value 由 Service 层传入（UPDATE 前查一次库，UPDATE 后自行构造）。
-
-#### 3. ActivityLogService
-
-提供三个方法：
+新建 `app/context.py`：
 ```python
-async def log_create(db, actor_user_id, actor_username, resource_type, resource_id, new_value, ip_address)
-async def log_update(db, actor_user_id, actor_username, resource_type, resource_id, old_value, new_value)
-async def log_delete(db, actor_user_id, actor_username, resource_type, resource_id, old_value, ip_address)
+from contextvars import ContextVar
+from dataclasses import dataclass
+
+@dataclass
+class AuditContext:
+    user_id: int
+    username: str
+    ip_address: str | None = None
+
+audit_context: ContextVar[AuditContext | None] = ContextVar("audit_context", default=None)
 ```
+
+在 `dependencies.py` 的 `get_current_user()` 中设置 context：
+```python
+# 设置审计上下文
+audit_context.set(AuditContext(user_id=current_user.id, username=current_user.username, ip_address=request.client.host))
+```
+
+#### 2. SQLAlchemy 事件监听
+
+在 `app/repository/entity/` 各实体模型上注册事件监听。
+
+**CREATE（after_insert）** — 记录新增
+```python
+@event.listens_for(User, "after_insert")
+def receive_after_insert(mapper, connection, target):
+    ctx = audit_context.get()
+    if ctx:
+        write_activity_log(mapper, connection, "CREATE", target, None, target.to_dict())
+```
+
+**UPDATE（before_update` + `after_update）** — 记录变更前后
+```python
+@event.listens_for(User, "before_update")
+def receive_before_update(mapper, connection, target):
+    # 在更新前捕获旧值，存入 target 的历史字段
+    target._old_values = {c.name: getattr(target, c.name) for c in target.__table__.columns}
+
+@event.listens_for(User, "after_update")
+def receive_after_update(mapper, connection, target):
+    ctx = audit_context.get()
+    if ctx and hasattr(target, "_old_values"):
+        write_activity_log(mapper, connection, "UPDATE", target, target._old_values, target.to_dict())
+        del target._old_values
+```
+
+**DELETE（before_delete）** — 记录删除前
+```python
+@event.listens_for(User, "before_delete")
+def receive_before_delete(mapper, connection, target):
+    ctx = audit_context.get()
+    if ctx:
+        write_activity_log(mapper, connection, "DELETE", target, target.to_dict(), None)
+```
+
+`write_activity_log` 内部创建 `ActivityLog` 记录并插入。
+
+#### 3. ActivityLogRepository
+
+提供 `create(activity_log: ActivityLog)` 方法，供事件监听器调用。
 
 ### 目录结构
 
 ```
 app/
-├── middleware/
-│   └── audit_middleware.py
+├── context.py                      # 新增：审计上下文 ContextVar
 ├── repository/entity/
-│   └── activity_log.py
+│   ├── activity_log.py             # 新增：ActivityLog ORM 模型
+│   ├── user.py                      # 修改：注册事件监听
+│   ├── role.py                      # 修改：注册事件监听
+│   └── permission.py               # 修改：注册事件监听
 ├── repository/
-│   └── activity_log_repository.py
-├── service/
-│   └── activity_log_service.py
+│   └── activity_log_repository.py   # 新增：日志仓储
 └── api/v1/endpoints/
-    └── activity_logs.py
+    └── activity_logs.py            # 新增：日志查询 API
 ```
+
+依赖注入：`ActivityLogRepository` 通过 `get_db()` 获取 session 即可，无需特殊 DI。
 
 ## 验证
 
 - 启动服务后，创建/更新/删除 User/Role/Permission，数据库 `activity_logs` 表有对应记录
+- old_value / new_value 正确捕获变更前后数据
 - GET `/api/v1/activity-logs/` 能返回分页数据
 - 各过滤条件（actor_user_id, resource_type, action, date range）单独和组合生效
