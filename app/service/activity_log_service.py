@@ -89,13 +89,18 @@ def receive_after_update(mapper: Mapper, connection: Connection, target) -> None
 
 
 def receive_before_update(mapper: Mapper, connection: Connection, target) -> None:
-    """Store current (pre-change) values before SQLAlchemy flush modifies the instance."""
+    """Store pre-change values from SQLAlchemy's committed_state."""
     from datetime import datetime
+    from sqlalchemy import inspect as sqla_inspect
+
+    state = sqla_inspect(target)
     old_values = {}
     for c in target.__table__.columns:
-        value = getattr(target, c.name)
-        if isinstance(value, datetime):
-            old_values[c.name] = value.isoformat()
+        # committed_state holds the value as it was when loaded/committed
+        # This is the "old" value before the pending update
+        committed = state.committed_state.get(c.name)
+        if isinstance(committed, datetime):
+            old_values[c.name] = committed.isoformat()
         else:
-            old_values[c.name] = value
+            old_values[c.name] = committed
     target._audit_old_values = old_values
