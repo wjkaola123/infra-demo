@@ -1,5 +1,5 @@
 from typing import AsyncGenerator, Annotated
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,6 +10,7 @@ from app.redis import redis_client
 from app.repository.entity.user import User
 from app.repository.entity.role import Role, Permission, user_roles, role_permissions
 from app.tools.auth.jwt import JWTHandler
+from app.context import audit_context, AuditContext
 
 
 security = HTTPBearer()
@@ -29,6 +30,7 @@ async def get_redis() -> Redis:
 
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> User:
     """Get current user from JWT token."""
@@ -76,6 +78,10 @@ async def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User is inactive",
         )
+
+    # Set audit context for SQLAlchemy event listeners
+    ip_address = request.client.host if request.client else None
+    audit_context.set(AuditContext(user_id=user.id, username=user.username, ip_address=ip_address))
 
     return user
 
