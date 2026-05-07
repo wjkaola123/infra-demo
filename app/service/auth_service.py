@@ -46,7 +46,8 @@ class AuthService:
             )
             await self.db.commit()
 
-        return await self._create_tokens(user.id, user.username)
+        roles = [role.name for role in user.roles]
+        return await self._create_tokens(user.id, user.username, roles)
 
     async def login(self, username: str, password: str) -> TokenResponse:
         result = await self.db.execute(select(User).where(User.username == username))
@@ -61,7 +62,8 @@ class AuthService:
         if not user.is_active:
             raise ValueError("User is inactive")
 
-        return await self._create_tokens(user.id, user.username)
+        roles = [role.name for role in user.roles]
+        return await self._create_tokens(user.id, user.username, roles)
 
     async def refresh_token(self, refresh_token: str) -> TokenResponse:
         payload = JWTHandler.verify_token(refresh_token, expected_type="refresh")
@@ -83,7 +85,8 @@ class AuthService:
         if not user.is_active:
             raise ValueError("User is inactive")
 
-        return await self._create_tokens(user.id, user.username)
+        roles = [role.name for role in user.roles]
+        return await self._create_tokens(user.id, user.username, roles)
 
     async def logout(self, refresh_token: str) -> None:
         payload = JWTHandler.decode_token(refresh_token)
@@ -93,9 +96,9 @@ class AuthService:
                 redis = await self._get_redis()
                 await redis.setex(f"revoked:{jti}", 7 * 24 * 3600, "1")
 
-    async def _create_tokens(self, user_id: int, username: str | None = None) -> TokenResponse:
+    async def _create_tokens(self, user_id: int, username: str | None = None, roles: list[str] | None = None) -> TokenResponse:
         access_token = JWTHandler.create_access_token({"sub": str(user_id)})
         refresh_token, jti = JWTHandler.create_refresh_token({"sub": str(user_id)})
         redis = await self._get_redis()
         await redis.setex(f"refresh:{user_id}:{jti}", 7 * 24 * 3600, "1")
-        return TokenResponse(access_token=access_token, refresh_token=refresh_token, username=username)
+        return TokenResponse(access_token=access_token, refresh_token=refresh_token, username=username, roles=roles or [])

@@ -6,3 +6,4 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     username: str | None = None
+    roles: list[str] = []
