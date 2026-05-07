@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Mapper
 from sqlalchemy.engine import Connection
 from app.context import audit_context
-from app.repository.activity_log_repository import ActivityLogRepository
 
 
 def _resource_type_for_model(model_tablename: str) -> str:
