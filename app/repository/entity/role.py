@@ -52,3 +52,8 @@ event.listens_for(Role, "after_insert")(receive_after_insert)
 event.listens_for(Role, "before_update")(receive_before_update)
 event.listens_for(Role, "after_update")(receive_after_update)
 event.listens_for(Role, "before_delete")(receive_before_delete)
+
+event.listens_for(Permission, "after_insert")(receive_after_insert)
+event.listens_for(Permission, "before_update")(receive_before_update)
+event.listens_for(Permission, "after_update")(receive_after_update)
+event.listens_for(Permission, "before_delete")(receive_before_delete)
