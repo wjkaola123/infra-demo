@@ -17,6 +17,7 @@ def _resource_type_for_model(model_tablename: str) -> str:
 
 
 def _model_to_dict(model) -> dict:
+    from datetime import datetime
     result = {}
     for column in model.__table__.columns:
         value = getattr(model, column.name)
@@ -24,6 +25,8 @@ def _model_to_dict(model) -> dict:
             result[column.name] = value.to_dict()
         elif hasattr(value, "__dict__"):
             pass
+        elif isinstance(value, datetime):
+            result[column.name] = value.isoformat()
         else:
             result[column.name] = value
     return result
@@ -41,7 +44,6 @@ def _write_activity_log(
         return
     resource_type = _resource_type_for_model(target.__table__.name)
     resource_id = target.id
-    # Use raw SQL insert since we're in SQLAlchemy event context (outside async session)
     from sqlalchemy import insert
     from app.repository.entity.activity_log import ActivityLog
     connection.execute(
@@ -65,11 +67,15 @@ def receive_after_insert(mapper: Mapper, connection: Connection, target) -> None
         logger.exception("Failed to write activity log for INSERT on %s", target.__table__.name)
 
 
-def receive_before_update(mapper: Mapper, connection: Connection, target) -> None:
-    target._audit_old_values = {c.name: getattr(target, c.name) for c in target.__table__.columns}
+def receive_before_delete(mapper: Mapper, connection: Connection, target) -> None:
+    try:
+        _write_activity_log(connection, "DELETE", target, _model_to_dict(target), None)
+    except Exception:
+        logger.exception("Failed to write activity log for DELETE on %s", target.__table__.name)
 
 
 def receive_after_update(mapper: Mapper, connection: Connection, target) -> None:
+    """Capture UPDATE - old_value is captured via instance-level tracking before flush."""
     if not hasattr(target, "_audit_old_values"):
         return
     try:
@@ -82,8 +88,14 @@ def receive_after_update(mapper: Mapper, connection: Connection, target) -> None
         del target._audit_old_values
 
 
-def receive_before_delete(mapper: Mapper, connection: Connection, target) -> None:
-    try:
-        _write_activity_log(connection, "DELETE", target, _model_to_dict(target), None)
-    except Exception:
-        logger.exception("Failed to write activity log for DELETE on %s", target.__table__.name)
+def receive_before_update(mapper: Mapper, connection: Connection, target) -> None:
+    """Store current (pre-change) values before SQLAlchemy flush modifies the instance."""
+    from datetime import datetime
+    old_values = {}
+    for c in target.__table__.columns:
+        value = getattr(target, c.name)
+        if isinstance(value, datetime):
+            old_values[c.name] = value.isoformat()
+        else:
+            old_values[c.name] = value
+    target._audit_old_values = old_values
