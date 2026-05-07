@@ -14,7 +14,7 @@ router = APIRouter()
 @router.get("/", response_model=ApiResponse[PaginatedActivityLogResponse])
 async def list_activity_logs(
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=10000, description="Items per page"),
+    page_size: int = Query(10, ge=1, le=10000, description="Items per page"),
     actor_user_id: int | None = Query(None, description="Filter by actor user ID"),
     resource_type: str | None = Query(None, description="Filter by resource type: user, role, permission"),
     action: str | None = Query(None, description="Filter by action: CREATE, UPDATE, DELETE"),
