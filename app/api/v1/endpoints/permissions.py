@@ -101,17 +101,22 @@ async def list_permissions(
 ):
     service = PermissionService(db)
     entities, total, meta = await service.list_permissions(page, page_size, name)
+    counts = meta.pop("counts")
+
+    items = []
+    for e in entities:
+        resp = PermissionResponse(
+            id=e.id,
+            name=e.name,
+            description=e.description,
+            created_at=e.created_at,
+            updated_at=e.updated_at,
+            assigned_roles_count=counts.get(e.id, 0),
+        )
+        items.append(resp)
+
     return ApiResponse(data=PaginatedPermissionResponse(
-        items=[
-            PermissionResponse(
-                id=e.id,
-                name=e.name,
-                description=e.description,
-                created_at=e.created_at,
-                updated_at=e.updated_at,
-            )
-            for e in entities
-        ],
+        items=items,
         total=total,
         page=meta["page"],
         page_size=meta["page_size"],

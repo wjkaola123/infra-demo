@@ -138,6 +138,9 @@ async def test_list_permissions(client: AsyncClient, db_session):
         assert "id" in perm
         assert "name" in perm
         assert "description" in perm
+        assert "assigned_roles_count" in perm
+        assert isinstance(perm["assigned_roles_count"], int)
+        assert perm["assigned_roles_count"] >= 0
 
 
 @pytest.mark.asyncio
@@ -173,6 +176,83 @@ async def test_list_permissions_filter_by_name(client: AsyncClient, db_session):
     assert "permissions:read" in names
     assert "permissions:write" in names
     assert "permissions:delete" in names
+
+
+@pytest.mark.asyncio
+async def test_list_permissions_returns_assigned_roles_count(client: AsyncClient, db_session):
+    """Test that list permissions returns correct assigned_roles_count."""
+    from sqlalchemy import text
+
+    token = await get_admin_token(client, db_session, "countrolesperm")
+    timestamp = int(time.time() * 1000)
+    perm_name = f"count:test_{timestamp}"
+
+    # 1. 创建一个新 permission（初始无角色关联，count 应为 0）
+    create_response = await client.post(
+        "/api/v1/permissions/",
+        json={"name": perm_name, "description": "Test count"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert create_response.status_code == 201
+    perm_id = create_response.json()["data"]["id"]
+
+    # 2. 列出 permissions，验证新创建的 permission 的 assigned_roles_count 为 0
+    list_response = await client.get(
+        f"/api/v1/permissions/?name={perm_name}",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    items = list_response.json()["data"]["items"]
+    assert len(items) == 1
+    new_perm = items[0]
+    assert new_perm["id"] == perm_id
+    assert new_perm["assigned_roles_count"] == 0
+
+    # 3. 获取 admin role id（role_id = 1）
+    result = await db_session.execute(text("SELECT id FROM roles WHERE name = 'admin'"))
+    admin_role_id = result.scalar_one()
+
+    # 4. 将新 permission 分配给 admin role
+    await db_session.execute(
+        text("INSERT INTO role_permissions (role_id, permission_id) VALUES (:role_id, :perm_id)"),
+        {"role_id": admin_role_id, "perm_id": perm_id}
+    )
+    await db_session.commit()
+
+    # 5. 再次列出 permissions，验证 assigned_roles_count 为 1
+    list_response = await client.get(
+        f"/api/v1/permissions/?name={perm_name}",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    items = list_response.json()["data"]["items"]
+    assert len(items) == 1
+    new_perm = items[0]
+    assert new_perm["assigned_roles_count"] == 1
+
+    # 6. 再分配给一个 role（分配给 editor role）
+    result = await db_session.execute(text("SELECT id FROM roles WHERE name = 'editor'"))
+    editor_role_id = result.scalar_one()
+    await db_session.execute(
+        text("INSERT INTO role_permissions (role_id, permission_id) VALUES (:role_id, :perm_id)"),
+        {"role_id": editor_role_id, "perm_id": perm_id}
+    )
+    await db_session.commit()
+
+    # 7. 验证 assigned_roles_count 为 2
+    list_response = await client.get(
+        f"/api/v1/permissions/?name={perm_name}",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    items = list_response.json()["data"]["items"]
+    assert len(items) == 1
+    new_perm = items[0]
+    assert new_perm["assigned_roles_count"] == 2
+
+    # 8. 清理
+    await db_session.execute(
+        text("DELETE FROM role_permissions WHERE permission_id = :perm_id"),
+        {"perm_id": perm_id}
+    )
+    await db_session.commit()
 
 
 @pytest.mark.asyncio

@@ -34,7 +34,7 @@ class PermissionService:
         )
 
     async def list_permissions(self, page: int, page_size: int, name: str | None) -> tuple[list[PermissionEntity], int, dict]:
-        items, total = await self.repo.list_paginated(page, page_size, name)
+        items, total, counts = await self.repo.list_paginated(page, page_size, name)
         total_pages = (total + page_size - 1) // page_size if total > 0 else 0
         entities = [
             PermissionEntity(
@@ -46,7 +46,7 @@ class PermissionService:
             )
             for p in items
         ]
-        return entities, total, {"page": page, "page_size": page_size, "total_pages": total_pages}
+        return entities, total, {"page": page, "page_size": page_size, "total_pages": total_pages, "counts": counts}
 
     async def update_permission(self, permission_id: int, name: str | None, description: str | None) -> PermissionEntity:
         if name is not None:

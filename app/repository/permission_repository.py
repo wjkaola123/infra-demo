@@ -24,23 +24,53 @@ class PermissionRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_paginated(self, page: int, page_size: int, name: str | None = None) -> tuple[list[Permission], int]:
+    async def list_paginated(self, page: int, page_size: int, name: str | None = None) -> tuple[list[Permission], int, dict[int, int]]:
         offset = (page - 1) * page_size
-        base_query = select(Permission)
-        count_query = select(func.count(Permission.id))
 
+        # 计数子查询：统计每个 permission 关联的 role 数量
+        role_count_subquery = (
+            select(
+                role_permissions.c.permission_id,
+                func.count(role_permissions.c.role_id).label('role_count')
+            )
+            .group_by(role_permissions.c.permission_id)
+            .subquery()
+        )
+
+        # 基础查询：left outer join 计数子查询
+        base_query = (
+            select(Permission, func.coalesce(role_count_subquery.c.role_count, 0).label('assigned_roles_count'))
+            .outerjoin(role_count_subquery, Permission.id == role_count_subquery.c.permission_id)
+        )
+
+        # 名称过滤
         if name:
             name_filter = Permission.name.ilike(f"%{name}%")
             base_query = base_query.where(name_filter)
+
+        # 总数查询（不受分页影响）
+        count_query = select(func.count(Permission.id))
+        if name:
             count_query = count_query.where(name_filter)
 
         count_result = await self.session.execute(count_query)
         total = count_result.scalar() or 0
 
+        # 分页查询
         result = await self.session.execute(
             base_query.order_by(Permission.id).offset(offset).limit(page_size)
         )
-        return list(result.scalars().all()), total
+
+        # 组装返回结果
+        permissions = []
+        counts = {}
+        for row in result.all():
+            perm = row[0]
+            count = row[1]
+            permissions.append(perm)
+            counts[perm.id] = count
+
+        return permissions, total, counts
 
     async def update(self, permission_id: int, name: str | None = None, description: str | None = None) -> Permission | None:
         perm = await self.get_by_id(permission_id)
